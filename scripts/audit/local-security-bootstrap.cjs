@@ -124,8 +124,10 @@ function installHarness(entryFilename = process.env.NATIVELY_SECURITY_MAIN, opti
     if (message?.type === 'natively-security-quit') app.quit();
   });
   let completed = false;
+  let ready = false;
   const timeout = setTimeout(() => {
     console.log('[SECURITY-TIMEOUT] No rendered application window completed');
+    options.onFailure?.(new Error('Security readiness timed out'));
     app.quit();
   }, 45_000);
   app.on('browser-window-created', (_event, win) => {
@@ -162,7 +164,7 @@ function installHarness(entryFilename = process.env.NATIVELY_SECURITY_MAIN, opti
             auditCount: audit?.audit?.length, productionRejected,
             namedProductionReadSucceeded: typeof active === 'boolean' };
         })()`);
-        console.log('[SECURITY-RESULT] ' + JSON.stringify({
+        const result = {
           packaged: app.isPackaged, visible: win.isVisible(),
           renderedCharacters: rendered.text.length, ...probe,
           registeredTestChannels: [...registeredTestChannels].sort(),
@@ -170,19 +172,24 @@ function installHarness(entryFilename = process.env.NATIVELY_SECURITY_MAIN, opti
           policyReplies,
           appPath: app.getAppPath(), entryFilename,
           themeMode: options.entryModule?.exports?.AppState?.getInstance().themeManager.getMode(),
-        }));
+        };
+        console.log('[SECURITY-RESULT] ' + JSON.stringify(result));
         await new Promise(resolve => setTimeout(resolve, 2_000));
         fs.writeFileSync(path.join(profile, 'launcher.png'), (await win.webContents.capturePage()).toPNG());
         clearTimeout(timeout);
+        ready = true;
+        options.onReady?.(result);
         if (!options.keepAlive) setTimeout(() => app.quit(), 500);
       } catch (error) {
         console.log('[SECURITY-PROBE-ERROR] ' + error.message);
+        options.onFailure?.(error);
         clearTimeout(timeout);
         app.quit();
       }
     });
   });
   app.on('will-quit', () => {
+    if (!ready) options.onFailure?.(new Error('Application quit before security readiness'));
     clearTimeout(timeout);
     console.log('[SECURITY-CLEAN-QUIT]');
   });

@@ -1,5 +1,7 @@
 # F-001 remediation record
 
+Follow-up implementation and acceptance are recorded in [LIFECYCLE_VERIFICATION.md](LIFECYCLE_VERIFICATION.md): explicit pre-install probe readiness, Windows Job Object ownership, development restart repair, and truthful permission diagnostics. Fresh macOS package exclusion passed again; native Windows execution, microphone capture and signed-upgrade/signature acceptance remain pending.
+
 ## F-001: exclude E2E interfaces from packaged processes
 
 1. Establish one main-process test-context policy requiring `!app.isPackaged` and explicit opt-in. Apply it to all E2E registration and test-handler capture sites, including `electron/ipcHandlers.ts:5604` and `:13682`.

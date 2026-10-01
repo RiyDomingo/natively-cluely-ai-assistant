@@ -53,6 +53,8 @@ jobs:
       - name: Policy, updater, workflow and public-build regressions
         run: node --test scripts/__tests__/fork-release.test.mjs scripts/__tests__/verify-packaged-e2e.test.mjs scripts/__tests__/packaged-e2e-workflow.test.mjs electron/update/UpdateCheckScheduler.test.mjs electron/update/ReleaseNotesManager.test.mjs electron/update/UpdaterAndLifecycleIntegrity2026_08_18.test.mjs electron/update/AppState.isRealUpgrade.test.mjs electron/services/__tests__/E2eTestPolicy.test.mjs electron/services/__tests__/E2eInvokeGated2026_08_14.test.mjs electron/services/__tests__/IpcBridgeWiring.test.mjs electron/services/__tests__/ResolveCompanySearchProviderOptionalPremium.test.mjs
       - run: npm run build:native
+      - name: Lifecycle, permission and upgrade-harness regressions
+        run: npm run test:lifecycle-security
       - run: node scripts/ensure-sharp-mac-deps.js
       - run: node scripts/ensure-napi-canvas-mac-deps.js
       - run: npm run verify:packaged-local-assets

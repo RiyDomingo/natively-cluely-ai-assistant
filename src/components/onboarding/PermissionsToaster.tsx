@@ -13,7 +13,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X, Monitor, Mic, Settings } from 'lucide-react';
 import nativelyIcon from '../../../assets/icon.png';
 import { useResolvedTheme } from '../../hooks/useResolvedTheme';
-import { classifyMicStatus } from '../../lib/micPermissionPolicy.mjs';
+import { readPermissions, actOnMicrophone } from '../../lib/permissionActions.mjs';
 
 const STORAGE_KEY  = 'natively_perms_shown_v1';
 
@@ -48,6 +48,7 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
   const [micStatus,  setMicStatus]  = useState<PermStatus>('loading');
   const [scrStatus,  setScrStatus]  = useState<PermStatus>('loading');
   const [requesting, setRequesting] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   const reduced = useReducedMotion() ?? false;
 
   const [mockToggleActive, setMockToggleActive] = useState(true);
@@ -118,14 +119,15 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
 
   const refreshStatus = useCallback(async () => {
     try {
-      const p = await window.electronAPI?.checkPermissions?.();
-      if (!p) return;
+      const p = await readPermissions(window.electronAPI);
+      setPermissionError(null);
       setPlatform(p.platform);
       setMicStatus(p.microphone as PermStatus);
       setScrStatus(p.screen     as PermStatus);
-    } catch {
-      setMicStatus('not-determined');
-      setScrStatus('not-determined');
+    } catch (error) {
+      setMicStatus('loading');
+      setScrStatus('loading');
+      setPermissionError(error instanceof Error ? error.message : 'Unable to read permission status. Restart and retry.');
     }
   }, []);
 
@@ -144,10 +146,6 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
   }, [visible, refreshStatus]);
 
   const handleMicToggle = async () => {
-    if (micStatus === 'granted') {
-      setMicStatus('denied');
-      return;
-    }
     // CR-03: this used to assume the request SUCCEEDED and set 'granted'
     // unconditionally. Off darwin nothing was requested at all, so a Windows
     // user with the mic toggle off saw a green control over a denied device and
@@ -155,13 +153,12 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
     // status instead of asserting one.
     setRequesting(true);
     try {
-      const plan = classifyMicStatus(platform, micStatus);
-      if (plan.remedy === 'request') {
-        await window.electronAPI?.requestMicPermission?.();
-      } else if (plan.remedy === 'settings') {
-        await window.electronAPI?.openMicSettings?.();
-      }
-      await refreshStatus();
+      const p = await actOnMicrophone(window.electronAPI, platform, micStatus);
+      setPlatform(p.platform); setMicStatus(p.microphone); setScrStatus(p.screen);
+      setPermissionError(null);
+    } catch (error) {
+      setMicStatus('loading');
+      setPermissionError(error instanceof Error ? error.message : 'Microphone request failed. Check OS privacy settings and retry.');
     } finally {
       setRequesting(false);
     }
@@ -207,6 +204,7 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
           }}
           onClick={e => { if (e.target === e.currentTarget) handleDismiss(); }}
         >
+          {permissionError && <div role="alert" style={{ position: 'absolute', bottom: 24, left: 24, right: 24, color: isLight ? '#111' : '#fff' }}>{permissionError} <button onClick={refreshStatus}>Retry permission check</button></div>}
           {/* Card */}
           <motion.div
             key="perm-card"

@@ -41,10 +41,10 @@ test('Windows queries the real microphone status instead of hardcoding granted',
     'the win32 branch must not return a hardcoded granted microphone');
 });
 
-test('a failed query falls back to granted so it cannot lock out a working machine', () => {
+test('a failed query surfaces diagnostics rather than inventing granted or denied', () => {
   const body = permissionsCheckBody();
   const i = body.indexOf("process.platform === 'win32'");
   const win = body.slice(i, i + 900);
-  assert.ok(/catch\s*\{[\s\S]{0,120}microphone = 'granted'/.test(win),
-    'an API failure must fall back to granted, never to denied (F-706)');
+  assert.match(win, /throw new Error\('Unable to read Windows microphone status/);
+  assert.doesNotMatch(win, /microphone = 'granted'/);
 });

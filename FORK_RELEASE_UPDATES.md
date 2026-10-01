@@ -1,5 +1,7 @@
 # Verified fork updates — release and acceptance record
 
+Lifecycle/harness follow-up: see [LIFECYCLE_VERIFICATION.md](LIFECYCLE_VERIFICATION.md). Installation now awaits completed independent probe/screenshot evidence, and Windows verifier-owned jobs retain detached installers. Both CI matrices include regression coverage. Fresh local macOS startup exclusion passed, but the ad-hoc native-module resource seal fails strict signature verification; no signed release or actual two-version upgrade is accepted or published.
+
 ## Status and scope
 
 Prepared for `RiyDomingo/natively-cluely-ai-assistant`, stable channel, first version

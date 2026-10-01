@@ -14,6 +14,7 @@ import { X, Monitor, Mic, Lightbulb, Check, AlertCircle, ArrowRight, Lock } from
 import { NativelyLogoMark } from '../NativelyLogoMark';
 import nativelyIcon from '../../../assets/icon.png';
 import { classifyMicStatus } from '../../lib/micPermissionPolicy.mjs';
+import { readPermissions, actOnMicrophone } from '../../lib/permissionActions.mjs';
 
 const STORAGE_KEY  = 'natively_perms_shown_v1';
 
@@ -199,20 +200,22 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
   const [micStatus,  setMicStatus]  = useState<PermStatus>('loading');
   const [scrStatus,  setScrStatus]  = useState<PermStatus>('loading');
   const [requesting, setRequesting] = useState(false);
+  const [permissionError, setPermissionError] = useState<string | null>(null);
   const [assistActive, setAssistActive] = useState(true);
   const [canClick, setCanClick] = useState(false);
   const reduced = useReducedMotion() ?? false;
 
   const refreshStatus = useCallback(async () => {
     try {
-      const p = await window.electronAPI?.checkPermissions?.();
-      if (!p) return;
+      const p = await readPermissions(window.electronAPI);
+      setPermissionError(null);
       setPlatform(p.platform);
       setMicStatus(p.microphone as PermStatus);
       setScrStatus(p.screen     as PermStatus);
-    } catch {
-      setMicStatus('not-determined');
-      setScrStatus('not-determined');
+    } catch (error) {
+      setMicStatus('loading');
+      setScrStatus('loading');
+      setPermissionError(error instanceof Error ? error.message : 'Unable to read permission status. Restart and retry.');
     }
   }, []);
 
@@ -231,11 +234,11 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
 
   // Re-check when window regains focus (user returned from System Preferences)
   useEffect(() => {
-    if (micStatus === 'loading' || scrStatus === 'loading') return;
+    if (!isOpen) return;
     const onFocus = () => refreshStatus();
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [micStatus, scrStatus, refreshStatus]);
+  }, [isOpen, refreshStatus]);
 
   // CR-03: requestMicPermission can only grant on darwin. On win32 it did
   // nothing and reported success, so this button could never turn the control
@@ -246,14 +249,12 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
     if (!canClick) return;
     setRequesting(true);
     try {
-      if (micPlan.remedy === 'request') {
-        await window.electronAPI?.requestMicPermission?.();
-      } else if (micPlan.remedy === 'settings') {
-        await window.electronAPI?.openMicSettings?.();
-      }
-      // 'policy' is blocked by administrator policy — the panel cannot change
-      // it, so opening it would be a dead end. We only re-read status.
-      await refreshStatus();
+      const p = await actOnMicrophone(window.electronAPI, platform, micStatus);
+      setPlatform(p.platform); setMicStatus(p.microphone); setScrStatus(p.screen);
+      setPermissionError(null);
+    } catch (error) {
+      setMicStatus('loading');
+      setPermissionError(error instanceof Error ? error.message : 'Microphone request failed. Check OS privacy settings and retry.');
     } finally {
       setRequesting(false);
     }
@@ -283,6 +284,7 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
 
   // Dynamic button configurations based on active setup state
   const getButtonConfig = () => {
+    if (permissionError) return { label: 'Retry permission check', action: refreshStatus, active: !requesting };
     if (platform === 'darwin' && scrStatus !== 'granted') {
       return {
         label: 'Open screen settings',
@@ -319,6 +321,7 @@ export const PermissionsOnboardingFull: React.FC<Props> = ({ isOpen, onDismiss }
 
   return (
     <AnimatePresence>
+      {permissionError && <div role="alert" style={{ position: 'fixed', bottom: 24, left: 24, right: 24, zIndex: 10000, background: '#242424', color: '#fff', padding: 16, borderRadius: 12 }}>{permissionError}</div>}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

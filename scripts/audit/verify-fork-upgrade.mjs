@@ -5,7 +5,8 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { resolveArtifact, recordParser, installBeforeEntry, runtimeEnv, cleanupSpec, runLaunch, classifyRun } from './verify-packaged-e2e.mjs';
+import { resolveArtifact, recordParser, installBeforeEntry, requestNormalQuit, runtimeEnv, cleanupSpec, runLaunch, classifyRun } from './verify-packaged-e2e.mjs';
+import { spawnOwnedWindows, waitOwnedJob, assertOwnedJob, terminateOwnedJob } from './windows-job.mjs';
 import { hash, manifestFiles } from '../release/verify-fork-artifacts.mjs';
 const require = createRequire(import.meta.url);
 const { parse } = require('yaml');
@@ -25,7 +26,7 @@ export async function verifyUpgrade(baseline, target, evidence) {
     commit: process.env.GITHUB_SHA ?? null, errors: [] };
   fs.mkdirSync(evidence, { recursive: true });
   if (fs.existsSync(path.join(evidence, 'upgrade.json'))) throw new Error('Upgrade evidence must be fresh');
-  let server, child, log;
+  let server, child, log, inspectorEndpoint;
   try {
     assertSigning(process.platform, process.env);
     if (process.env.GITHUB_ACTIONS !== 'true' || process.env.CI !== 'true') throw new Error('Installer acceptance requires a disposable GitHub CI user, not a developer profile');
@@ -59,7 +60,15 @@ export async function verifyUpgrade(baseline, target, evidence) {
       run(powershell, ['-NoProfile', '-NonInteractive', '-Command',
         "$existing=Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' -ErrorAction SilentlyContinue | Where-Object DisplayName -eq 'Natively'; if($existing){throw 'Existing Natively installation'}; $s=Get-AuthenticodeSignature -LiteralPath $env:FORK_VERIFY_FILE; if($s.Status -ne 'Valid' -or $s.SignerCertificate.GetNameInfo('SimpleName',$false) -ne $env:FORK_WIN_PUBLISHER){throw 'Wrong baseline signature'}"],
         { env: { ...process.env, FORK_VERIFY_FILE: path.join(baseline, installers[0]) } });
-      run(path.join(baseline, installers[0]), ['/S', `/D=${install}`]);
+      const baselineInstaller = spawnOwnedWindows(path.resolve(baseline, installers[0]), ['/S', `/D=${install}`], {
+        cwd: install, env: runtimeEnv(process.env, profile, { main: path.join(install, 'unused-baseline-entry') }, '0') });
+      const baselineLog = fs.createWriteStream(path.join(evidence, 'baseline-installer.log'));
+      for (const stream of [baselineInstaller.stdout, baselineInstaller.stderr]) stream.on('data', chunk => baselineLog.write(chunk));
+      try { await waitOwnedJob(baselineInstaller); }
+      finally {
+        report.baselineInstallerOwnership = baselineInstaller.ownership;
+        await new Promise(resolve => baselineLog.end(resolve));
+      }
       app = install;
     }
     const artifact = resolveArtifact(app);
@@ -79,7 +88,7 @@ export async function verifyUpgrade(baseline, target, evidence) {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const port = server.address().port;
     log = fs.createWriteStream(path.join(evidence, 'baseline.log'));
-    child = spawn(artifact.executable, ['--inspect-brk=127.0.0.1:0', `--user-data-dir=${profile}`], {
+    child = (mac ? spawn : spawnOwnedWindows)(artifact.executable, ['--inspect-brk=127.0.0.1:0', `--user-data-dir=${profile}`], {
       cwd: install, detached: mac, stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       env: { ...runtimeEnv(process.env, profile, artifact, '1'), FORK_QA_PORT: String(port),
         FORK_QA_INSTALL: install, FORK_QA_TARGET_VERSION: version },
@@ -97,8 +106,9 @@ export async function verifyUpgrade(baseline, target, evidence) {
         if (kind === 'PROBE-ERROR' || kind === 'INVALID' || kind === 'TIMEOUT') report.errors.push(value);
       }, line => {
         const url = line.match(/Debugger listening on (ws:\/\/127\.0\.0\.1:\d+\/[^\s]+)/)?.[1];
-        if (url) endpointResolve(url);
+        if (url) { inspectorEndpoint = url; endpointResolve(url); }
         if (line.startsWith('[UPGRADE-DOWNLOADED] ')) report.downloaded = JSON.parse(line.slice('[UPGRADE-DOWNLOADED] '.length));
+        if (line.startsWith('[UPGRADE-INSTALLER] ')) report.installer = JSON.parse(line.slice('[UPGRADE-INSTALLER] '.length));
       });
       stream.on('data', chunk => { log.write(chunk); parser.push(chunk); });
       stream.on('end', () => parser.finish());
@@ -109,6 +119,11 @@ export async function verifyUpgrade(baseline, target, evidence) {
         new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Upgrade launch timed out')), 180_000); })]);
     } finally { clearTimeout(timeout); }
     await new Promise(resolve => log.end(resolve));
+    if (!mac) {
+      report.upgradeOwnership = child.ownership; assertOwnedJob(child);
+      if (!Number.isSafeInteger(report.installer?.pid) || report.installer.pid < 1 || !path.win32.isAbsolute(report.installer?.executable || '')
+        || report.installer?.install !== install) throw new Error('Owned installer launch was not observed');
+    }
     if (report.errors.length || report.baselineExit?.code !== 0 || report.baselineExit?.signal || !report.cleanQuit
       || report.harness?.packaged !== true || report.harness.profile !== profile || report.harness.entryFilename !== artifact.main
       || report.downloaded?.from !== report.from || report.downloaded?.to !== version
@@ -134,15 +149,26 @@ export async function verifyUpgrade(baseline, target, evidence) {
   finally {
     if (child?.pid && child.exitCode === null && child.signalCode === null) {
       if (child.connected) child.send({ type: 'natively-security-quit' }, () => {});
+      else if (inspectorEndpoint && !child.ownership?.rootExit) {
+        try { await requestNormalQuit(inspectorEndpoint); }
+        catch (error) { report.errors.push(error.message); }
+      }
       await new Promise(resolve => setTimeout(resolve, 5000));
       if (child.exitCode === null && child.signalCode === null) {
-        const spec = cleanupSpec(process.platform, child.pid);
         report.status = 2;
         report.errors.push('Installer process required forced cleanup');
-        try { if (spec.command) run(spec.command, spec.args, { timeout: 10000 }); else process.kill(spec.group, spec.signal); }
+        try {
+          if (child.terminateOwnedJob) {
+            await terminateOwnedJob(child);
+          } else {
+            const spec = cleanupSpec(process.platform, child.pid);
+            if (spec.command) run(spec.command, spec.args, { timeout: 10000 }); else process.kill(spec.group, spec.signal);
+          }
+        }
         catch (error) { report.errors.push(error.message); }
       }
     }
+    if (child?.ownership) report.upgradeOwnership = child.ownership;
     if (log && !log.writableEnded) await new Promise(resolve => log.end(resolve));
     server?.closeAllConnections();
     if (server?.listening) await new Promise(resolve => server.close(resolve));

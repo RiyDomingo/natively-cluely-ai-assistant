@@ -1,5 +1,7 @@
 # Initial security findings — 2026-10-01
 
+Lifecycle follow-up: fresh macOS arm64 packaged exclusion passed again (flags 0/1/1, unchanged executable/ASAR hashes). Development restart and bridge compatibility passed. Harness readiness and Windows process ownership have focused regression coverage; physical Windows and signed upgrades remain pending. See [lifecycle verification](LIFECYCLE_VERIFICATION.md) for commands, artifacts, and unresolved microphone/signature observations. The ad-hoc package's strict signature failure is not release acceptance.
+
 The first local campaign confirmed that the packaged-build E2E exclusion could be bypassed by launch environment and that the enabled bridge could invoke a production status channel. F-001 has now been remediated and verified against a fresh macOS arm64 electron-builder directory package; signed release packages and Windows execution remain pending. Paid-feature unlocking, licence forgery, server authorization, and destructive actions were not tested.
 
 ## F-001 — HIGH: packaged E2E interface enabled by launch environment

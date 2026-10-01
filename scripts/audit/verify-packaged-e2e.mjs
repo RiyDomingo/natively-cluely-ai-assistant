@@ -200,6 +200,14 @@ export async function installBeforeEntry(endpoint, artifact, bootstrapFile = boo
   } finally { client.close(); }
 }
 
+export async function requestNormalQuit(endpoint) {
+  const client = await inspector(endpoint);
+  try {
+    const response = await client.send('Runtime.evaluate', { expression: 'process.emit("message", { type: "natively-security-quit" })' });
+    if (response.exceptionDetails) throw new Error('Owned application shutdown request failed');
+  } finally { client.close(); }
+}
+
 export async function runLaunch(artifact, flag, label, evidence, ownedProfile) {
   const profile = ownedProfile ?? fs.mkdtempSync(path.join(evidence, `${label}-`));
   if (!inside(fs.realpathSync(evidence), fs.realpathSync(profile))) throw new Error('Profile must belong to evidence directory');

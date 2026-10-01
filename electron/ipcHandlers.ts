@@ -3,6 +3,7 @@
 import * as crypto from 'crypto';
 import { app, BrowserWindow, dialog, desktopCapturer, ipcMain, shell, systemPreferences } from 'electron';
 import { micSettingsUri } from '../src/lib/micPermissionPolicy.mjs';
+import { restartApplication } from './services/devRestart';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -5632,8 +5633,7 @@ export function initializeIpcHandlers(appState: AppState): void {
   // already-running process until the app is relaunched.
   safeHandle('restart-app', () => {
     console.log('[IPC] restart-app requested');
-    app.relaunch();
-    app.exit(0);
+    return restartApplication(app);
   });
 
   safeHandle('quit-and-install-update', async () => {
@@ -12130,16 +12130,14 @@ export function initializeIpcHandlers(appState: AppState): void {
     // no diagnosable cause. Screen capture has no equivalent Windows gate, so
     // 'granted' remains correct there.
     if (process.platform === 'win32') {
-      let microphone: string = 'granted';
       try {
-        // Any non-'granted' value (denied / restricted / not-determined) must
-        // surface; fall back to 'granted' only if the API itself is unavailable,
-        // so a query failure can never LOCK a working machine out of capture.
-        microphone = systemPreferences.getMediaAccessStatus('microphone') || 'granted';
-      } catch {
-        microphone = 'granted';
+        const microphone = systemPreferences.getMediaAccessStatus('microphone');
+        if (!microphone) throw new Error('Empty microphone permission status');
+        return { microphone, screen: 'granted', platform: 'win32' };
+      } catch (error) {
+        console.warn('[Permissions] Windows microphone status query failed:', error instanceof Error ? error.message : String(error));
+        throw new Error('Unable to read Windows microphone status. Check Windows Privacy & security → Microphone, then retry.');
       }
-      return { microphone, screen: 'granted', platform: 'win32' };
     }
     // Linux: no queryable per-app permission model here.
     return { microphone: 'granted', screen: 'granted', platform: process.platform };
@@ -12155,8 +12153,9 @@ export function initializeIpcHandlers(appState: AppState): void {
     if (process.platform !== 'darwin') return false;
     try {
       return await systemPreferences.askForMediaAccess('microphone');
-    } catch {
-      return false;
+    } catch (error) {
+      console.warn('[Permissions] Microphone request failed:', error instanceof Error ? error.message : String(error));
+      throw new Error('Unable to request microphone access. Check the running app in Privacy & Security → Microphone, then retry.');
     }
   });
 
