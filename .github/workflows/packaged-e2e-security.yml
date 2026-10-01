@@ -1,0 +1,68 @@
+name: Packaged E2E security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  packaged-e2e:
+    name: Packaged exclusion (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      PACKAGE_OUTPUT: ${{ runner.temp }}/natively-e2e-package
+      EVIDENCE_OUTPUT: ${{ runner.temp }}/natively-e2e-evidence
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install existing dependencies
+        run: npm ci
+      - name: Confirm private sources are absent
+        run: node -e "const fs=require('node:fs'); for(const dir of ['premium/electron','natively-api/package.json']) if(fs.existsSync(dir)) throw new Error('Public-build job unexpectedly has private source');"
+      - name: Build renderer
+        run: npm run build
+      - name: Build and type-check Electron
+        run: npm run build:electron
+      - run: npm run typecheck:electron
+      - run: npm run typecheck:ts7
+      - name: Focused policy and public-build regressions
+        run: node --test scripts/__tests__/verify-packaged-e2e.test.mjs scripts/__tests__/packaged-e2e-workflow.test.mjs electron/services/__tests__/E2eTestPolicy.test.mjs electron/services/__tests__/E2eInvokeGated2026_08_14.test.mjs electron/services/__tests__/IpcBridgeWiring.test.mjs electron/services/__tests__/ResolveCompanySearchProviderOptionalPremium.test.mjs
+      - name: Prepare host-native assets
+        run: npm run build:native
+      - name: Prepare macOS optional families (no-op on Windows)
+        run: node scripts/ensure-sharp-mac-deps.js
+      - run: node scripts/ensure-napi-canvas-mac-deps.js
+      - name: Verify source model and packaging configuration
+        run: npm run verify:packaged-local-assets
+      - name: Package host-native directory (never publish)
+        run: node -e "const {spawnSync}=require('node:child_process'); if(!['darwin','win32'].includes(process.platform)) throw new Error('Unsupported runner'); const r=spawnSync(process.execPath,['scripts/package-app.js','--dir',process.platform==='darwin'?'--mac':'--win','--'+process.arch,'--publish','never','--config.directories.output='+process.env.PACKAGE_OUTPUT],{stdio:'inherit'}); if(r.error) throw r.error; process.exit(r.status===null?1:r.status);"
+      - name: Verify unchanged packaged application
+        run: node -e "const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process'); const base=process.env.PACKAGE_OUTPUT; const apps=fs.readdirSync(base,{withFileTypes:true}).filter(e=>e.isDirectory()).map(e=>process.platform==='darwin'?path.join(base,e.name,'Natively.app'):path.join(base,e.name)).filter(p=>fs.existsSync(process.platform==='darwin'?path.join(p,'Contents','Resources','app.asar'):path.join(p,'resources','app.asar'))); if(apps.length!==1) throw new Error('Expected exactly one host-native package'); const r=spawnSync(process.execPath,['scripts/audit/verify-packaged-e2e.mjs','--app',apps[0],'--output',process.env.EVIDENCE_OUTPUT],{stdio:'inherit'}); if(r.error) throw r.error; process.exit(r.status===null?2:r.status);"
+      - name: Record incomplete verification if an earlier step failed
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: node -e "const fs=require('node:fs'),path=require('node:path'); fs.mkdirSync(process.env.EVIDENCE_OUTPUT,{recursive:true}); const file=path.join(process.env.EVIDENCE_OUTPUT,'results.json'); if(!fs.existsSync(file)) fs.writeFileSync(file,JSON.stringify({status:2,jobStatus:process.env.JOB_STATUS,reason:'Packaged verification did not complete',platform:process.platform,arch:process.arch},null,2));"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: packaged-e2e-${{ matrix.os }}
+          path: ${{ env.EVIDENCE_OUTPUT }}
+          retention-days: 14

@@ -35,7 +35,7 @@ test('F-707: allowDowngrade is restored after the channel setter clobbers it', (
     // If a future electron-updater stops doing this the guard is harmless.
     return;
   }
-  const i = main.indexOf("autoUpdater.channel = 'latest'");
+  const i = main.indexOf('autoUpdater.channel = RELEASE_CONFIG.channel');
   assert.notEqual(i, -1);
   assert.ok(/autoUpdater\.allowDowngrade\s*=\s*false/.test(main.slice(i, i + 900)),
     'setting channel enables downgrades; restore the default explicitly after it (F-707)');

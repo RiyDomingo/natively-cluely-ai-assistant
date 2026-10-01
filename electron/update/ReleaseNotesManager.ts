@@ -1,5 +1,6 @@
 
 import { net } from "electron";
+import { RELEASE_CONFIG, releaseApiUrl } from '../../src/config/release';
 
 const RELEASE_NOTE_BULLET_SECTIONS = new Set(["What's New", "Improvements", "Fixes", "Technical"]);
 const GITHUB_REQUEST_TIMEOUT_MS = 10000;
@@ -20,8 +21,8 @@ export interface ParsedReleaseNotes {
 export class ReleaseNotesManager {
     private static instance: ReleaseNotesManager;
     private cachedNotes: ParsedReleaseNotes | null = null;
-    private readonly repoOwner = "Natively-AI-assistant";
-    private readonly repoName = "natively-cluely-ai-assistant";
+    private readonly repoOwner = RELEASE_CONFIG.owner;
+    private readonly repoName = RELEASE_CONFIG.repo;
 
     private constructor() { }
 
@@ -64,12 +65,7 @@ export class ReleaseNotesManager {
     }
 
     private buildReleaseUrl(version: string): string {
-        if (version === 'latest') {
-            return `https://api.github.com/repos/${this.repoOwner}/${this.repoName}/releases/latest`;
-        }
-
-        const tag = version.startsWith('v') ? version : `v${version}`;
-        return `https://api.github.com/repos/${this.repoOwner}/${this.repoName}/releases/tags/${tag}`;
+        return releaseApiUrl(version);
     }
 
     private parseReleaseNotes(body: string, version: string, url: string): ParsedReleaseNotes {

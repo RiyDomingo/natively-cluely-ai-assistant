@@ -333,7 +333,8 @@ export interface ElectronAPI {
   modesGetActive: () => Promise<{ id: string; name: string; templateType: string; customContext: string; isActive: boolean; createdAt: string } | null>
   modesCreate: (params: { name: string; templateType: string }) => Promise<{ success: boolean; mode?: any; error?: string }>
   modesGenerateFromBrief: (params: { brief: string; requiresGrounding?: boolean; templateHint?: string; key?: string; persist?: boolean }) => Promise<{ success: boolean; mode?: any; draft?: any; attempts?: number; issues?: any[]; persisted?: boolean; error?: string }>
-  e2eInvoke: (channel: string, ...args: any[]) => Promise<any>
+  /** Present only in main-authorized, unpackaged E2E sessions. */
+  e2eInvoke?: (channel: string, ...args: any[]) => Promise<any>
   modesUpdate: (id: string, updates: { name?: string; templateType?: string; customContext?: string; sourceContract?: any }) => Promise<{ success: boolean; error?: string }>
   modesGetSourceContract: (modeId: string) => Promise<any>
   modesDelete: (id: string) => Promise<{ success: boolean; error?: string }>

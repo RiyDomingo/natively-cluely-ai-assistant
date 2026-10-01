@@ -1,6 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { createE2eTestBridge, E2E_TEST_POLICY_CHANNEL } from './services/e2eTestPolicy';
 import type { SkillUploadPayload } from './services/skills/SkillValidator';
 import { PAGE_CAPTURE_FALLBACK_CHANNEL, PAGE_CAPTURE_STARTED_CHANNEL, type PageCaptureFallbackNotice } from './services/pageCaptureFallback';
+
+// Main registers this read-only query before creating windows. Only an exact
+// true authorizes test access; no renderer environment or launch argument does.
+const e2eTestBridge = createE2eTestBridge(
+  ipcRenderer.sendSync(E2E_TEST_POLICY_CHANNEL),
+  (channel, ...args) => ipcRenderer.invoke(channel, ...args),
+);
 
 /**
  * Metadata the companion extension sends with a captured page (drives the
@@ -1049,7 +1057,7 @@ interface ElectronAPI {
     persisted?: boolean;
     error?: string;
   }>;
-  /** Present only in NATIVELY_E2E=1 sessions (F-117). */
+  /** Present only in main-authorized, unpackaged E2E sessions. */
   e2eInvoke?: (channel: string, ...args: any[]) => Promise<any>;
   modesUpdate: (
     id: string,
@@ -1069,8 +1077,8 @@ interface ElectronAPI {
   answerPolicySet: (input: { modeId?: string; templateType?: string; policy?: string | null }) => Promise<{ success: boolean; error?: string }>;
   // Context Intelligence V3 rollout controls. Their handlers were registered in
   // ipcHandlers.ts and had NO bridge here and no caller anywhere in the repo,
-  // so neither was reachable from a shipped app (`e2eInvoke`, the only generic
-  // passthrough, is undefined unless NATIVELY_E2E=1).
+  // so neither was reachable from a shipped app. The development E2E bridge
+  // accepts only listed test channels, not these production handlers.
   contextIntelligenceFlagGet: () => Promise<{
     ok: boolean; enabled?: boolean; persisted?: boolean | null;
     default?: boolean; envOverride?: string | null; error?: string;
@@ -2744,20 +2752,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     key?: string;
     persist?: boolean;
   }) => ipcRenderer.invoke('modes:generate-from-brief', params),
-  // E2E test bridge — generic invoke for the __e2e__:* handlers. GATED on the
-  // same env that registers those handlers: the previous comment claimed this
-  // was a "no-op surface in a shipped app", but NATIVELY_E2E gates only the
-  // __e2e__:* HANDLERS, not the channel argument — an unconditional
-  // passthrough let any renderer code reach every production channel
-  // ('quit-app', 'set-openai-api-key', 'delete-meeting', …), defeating the
-  // curated bridge's containment (F-117, live-reproduced in
-  // scripts/audit/F-117-repro.mjs). Undefined in shipped sessions.
-  ...(process.env.NATIVELY_E2E === '1'
-    ? {
-        e2eInvoke: (channel: string, ...args: any[]) =>
-          ipcRenderer.invoke(channel, ...args),
-      }
-    : {}),
+  // The main-authorized bridge accepts only explicitly listed test channels.
+  ...e2eTestBridge,
   modesUpdate: (
     id: string,
     updates: { name?: string; templateType?: string; customContext?: string; sourceContract?: any },

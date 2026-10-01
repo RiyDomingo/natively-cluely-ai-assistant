@@ -9,7 +9,7 @@
 //
 // Live repro: fake live-ready RAG manager on the real AppState whose
 // queryMeeting async-generator throws a non-fallback error; the real
-// rag:query-live handler is invoked from a bridge window (via e2eInvoke)
+// rag:query-live handler is invoked through its named production preload API.
 // with a rag:stream-error subscriber registered.
 //
 // Expected (correct): invoke resolves {success:false} and NO {live:true}
@@ -59,11 +59,11 @@ if (!poisoned.ok) {
 let win = null;
 for (const w of app.windows()) {
   try {
-    if (await w.evaluate(() => !!window.electronAPI?.e2eInvoke && !!window.electronAPI?.onRAGStreamError)) { win = w; break; }
+    if (await w.evaluate(() => !!window.electronAPI?.ragQueryLive && !!window.electronAPI?.onRAGStreamError)) { win = w; break; }
   } catch { /* navigating */ }
 }
 if (!win) {
-  console.error('[F-118] Inconclusive: no window with e2eInvoke + onRAGStreamError.');
+  console.error('[F-118] Inconclusive: no window with ragQueryLive + onRAGStreamError.');
   app.process().kill('SIGKILL');
   process.exit(2);
 }
@@ -71,7 +71,7 @@ if (!win) {
 const result = await win.evaluate(async () => {
   const events = [];
   const off = window.electronAPI.onRAGStreamError((data) => { events.push(data); });
-  const res = await window.electronAPI.e2eInvoke('rag:query-live', { query: 'audit question' });
+  const res = await window.electronAPI.ragQueryLive('audit question');
   await new Promise((r) => setTimeout(r, 400));
   off?.();
   return { res, events };

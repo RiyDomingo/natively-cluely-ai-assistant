@@ -57,6 +57,9 @@ const buildOptions = {
                           // (package.json has no "type": "module").
   external: [
     'electron',
+    // Keep a single updater instance shared with external artifact acceptance
+    // instrumentation. Runtime remains the lockfile-pinned production package.
+    'electron-updater',
     'better-sqlite3',
     'keytar',
     'sqlite-vec',

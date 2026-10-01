@@ -1,21 +1,6 @@
-// F-117 repro: e2eInvoke is an ungated passthrough to every production IPC
-// channel.
-//
-// preload exposes e2eInvoke(channel, ...args) → ipcRenderer.invoke(channel,…)
-// unconditionally. The inline comment claims it is a "no-op surface in a
-// shipped app (the handlers aren't registered)" — but NATIVELY_E2E gates only
-// the __e2e__:* HANDLERS, not the channel argument: any renderer code can
-// reach all ~349 production channels ('quit-app', 'set-openai-api-key',
-// 'delete-meeting', …), defeating the curated bridge's containment.
-//
-// Two launches: WITHOUT the env, the passthrough must be absent; WITH
-// NATIVELY_E2E=1 it must remain available (the e2e probes depend on it).
-//
-// Expected (correct): absent without env + present with env → exit 0.
-// Bug (F-117): available without env and able to invoke a production
-// channel → exit 1.
-//
-// Run: node scripts/audit/F-117-repro.mjs
+// Development-only F-117 regression: test bridge absent without opt-in,
+// present with opt-in, but rejecting production channels. For isolated,
+// offline packaged-mode verification use H-001-local-probe.mjs instead.
 import { _electron as electron } from '@playwright/test';
 
 async function probe(envExtra) {
@@ -42,11 +27,11 @@ async function probe(envExtra) {
       res = out; break;
     } catch { /* navigating */ }
   }
-  app.process().kill('SIGKILL');
+  await app.close();
   return res;
 }
 
-const closed = await probe({});
+const closed = await probe({ NATIVELY_E2E: '0' });
 console.log('[F-117] without NATIVELY_E2E:', JSON.stringify(closed));
 if (closed.type === 'no-bridge-window') {
   console.error('[F-117] Inconclusive: no bridge window.');
@@ -64,5 +49,9 @@ if (open.type !== 'function') {
   console.error('[F-117] FAIL: gating broke the E2E surface — probes need e2eInvoke under NATIVELY_E2E=1.');
   process.exit(1);
 }
-console.log('[F-117] PASS: passthrough gated to NATIVELY_E2E sessions only.');
+if (open.productionInvoke || !open.error?.includes('E2E channel not allowed')) {
+  console.error('[F-117] FAIL: development test bridge did not reject the production channel.');
+  process.exit(1);
+}
+console.log('[F-117] PASS: development opt-in preserved; production channels rejected.');
 process.exit(0);

@@ -1,0 +1,132 @@
+name: Verified fork release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Stable version matching package.json (first: 2.8.9)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'RiyDomingo/natively-cluely-ai-assistant' && github.ref == 'refs/heads/main'
+    environment: fork-release
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: darwin
+          - os: windows-latest
+            platform: win32
+    runs-on: ${{ matrix.os }}
+    env:
+      FORK_RELEASE_VERSION: ${{ inputs.version }}
+      FORK_DISTRIBUTION_AUTHORIZED: ${{ vars.FORK_DISTRIBUTION_AUTHORIZED }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm ci
+      - name: Check trusted source and public checkout
+        run: node -e "const fs=require('node:fs'),p=require('./package.json'); require('./scripts/release/fork-policy.cjs').assertContext(process.env,p.version); if(p.version!==process.env.FORK_RELEASE_VERSION) throw new Error('Version mismatch'); for(const file of ['premium/electron','natively-api/package.json']) if(fs.existsSync(file)) throw new Error('Private source present');"
+      - run: npm run build
+      - run: npm run build:electron
+      - run: npm run typecheck:electron
+      - run: npm run typecheck:ts7
+      - name: Policy, updater, workflow and public-build regressions
+        run: node --test scripts/__tests__/fork-release.test.mjs scripts/__tests__/verify-packaged-e2e.test.mjs scripts/__tests__/packaged-e2e-workflow.test.mjs electron/update/UpdateCheckScheduler.test.mjs electron/update/ReleaseNotesManager.test.mjs electron/update/UpdaterAndLifecycleIntegrity2026_08_18.test.mjs electron/update/AppState.isRealUpgrade.test.mjs electron/services/__tests__/E2eTestPolicy.test.mjs electron/services/__tests__/E2eInvokeGated2026_08_14.test.mjs electron/services/__tests__/IpcBridgeWiring.test.mjs electron/services/__tests__/ResolveCompanySearchProviderOptionalPremium.test.mjs
+      - run: npm run build:native
+      - run: node scripts/ensure-sharp-mac-deps.js
+      - run: node scripts/ensure-napi-canvas-mac-deps.js
+      - run: npm run verify:packaged-local-assets
+      - name: Sign, verify final artifacts, and exercise real isolated upgrade
+        env:
+          FORK_MAC_CERT_BASE64: ${{ secrets.FORK_MAC_CERT_BASE64 }}
+          FORK_MAC_CERT_PASSWORD: ${{ secrets.FORK_MAC_CERT_PASSWORD }}
+          FORK_MAC_IDENTITY: ${{ vars.FORK_MAC_IDENTITY }}
+          FORK_APPLE_TEAM_ID: ${{ vars.FORK_APPLE_TEAM_ID }}
+          FORK_NOTARY_KEY_BASE64: ${{ secrets.FORK_NOTARY_KEY_BASE64 }}
+          FORK_NOTARY_KEY_ID: ${{ vars.FORK_NOTARY_KEY_ID }}
+          FORK_NOTARY_ISSUER: ${{ vars.FORK_NOTARY_ISSUER }}
+          FORK_WIN_CERT_BASE64: ${{ secrets.FORK_WIN_CERT_BASE64 }}
+          FORK_WIN_CERT_PASSWORD: ${{ secrets.FORK_WIN_CERT_PASSWORD }}
+          FORK_WIN_PUBLISHER: ${{ vars.FORK_WIN_PUBLISHER }}
+        run: node scripts/release/build-and-verify.cjs
+      - name: Record incomplete acceptance after an early failure
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: node -e "const fs=require('node:fs'),path=require('node:path'),dir=path.join(process.env.RUNNER_TEMP,'fork-release-evidence'); fs.mkdirSync(dir,{recursive:true}); fs.writeFileSync(path.join(dir,'job.json'),JSON.stringify({jobStatus:process.env.JOB_STATUS,platform:process.platform,arch:process.arch,commit:process.env.GITHUB_SHA,acceptanceComplete:fs.existsSync('release/upgrade.json')},null,2));"
+      - name: Retain evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fork-evidence-${{ matrix.platform }}
+          path: ${{ runner.temp }}/fork-release-evidence
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Retain verified shipping artifacts only
+        uses: actions/upload-artifact@v4
+        with:
+          name: fork-shipping-${{ matrix.platform }}
+          path: |
+            release/*.zip
+            release/*.dmg
+            release/*.exe
+            release/*.blockmap
+            release/latest*.yml
+            release/artifacts.json
+            release/upgrade.json
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    if: github.repository == 'RiyDomingo/natively-cluely-ai-assistant' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: fork-release
+    permissions:
+      contents: write
+    env:
+      FORK_RELEASE_VERSION: ${{ inputs.version }}
+      FORK_DISTRIBUTION_AUTHORIZED: ${{ vars.FORK_DISTRIBUTION_AUTHORIZED }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          submodules: false
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install policy-only dependencies without application hooks
+        run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          name: fork-shipping-darwin
+          path: accepted/darwin
+      - uses: actions/download-artifact@v4
+        with:
+          name: fork-shipping-win32
+          path: accepted/win32
+      - name: Publish only fully accepted immutable artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/release/publish-fork.mjs accepted

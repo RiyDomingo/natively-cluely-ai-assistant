@@ -76,6 +76,10 @@ function run(scriptPath, args) {
 }
 
 const builderArgs = process.argv.slice(2);
+if (!builderArgs.some(arg => arg === '--config' || arg === '-c' || arg.startsWith('--config=')
+  || arg.startsWith('-c='))) {
+  builderArgs.unshift('--config', path.join(__dirname, '..', 'electron-builder.public.cjs'));
+}
 
 // The resolve is inside the guarded region on purpose. The bash original ran
 // the native rebuild even when electron-builder could not be executed at all

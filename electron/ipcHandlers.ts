@@ -24,6 +24,7 @@ import { DEFAULT_BUILTIN_SKILL_IDS, type SkillUploadPayload } from './services/s
 
 import { TRIAL_SENTINEL_KEY, DOM_CONTEXT_MAX_CHARS } from './config/constants';
 import { AI_RESPONSE_LANGUAGES, RECOGNITION_LANGUAGES } from './config/languages';
+import { E2E_TEST_POLICY_CHANNEL, isE2eTestEnabled } from './services/e2eTestPolicy';
 import { resolveCodingPromptSignals } from './llm/codingPromptSignals';
 import { isBareCodeRequest, looksLikeCodingAnswer, buildPriorCodingContextBlock as buildPriorCodingBlockForV3 } from './llm/codingFollowup';
 import { planAnswer, formatAnswerPlanForPrompt, isCodingAnswerType, validateAnswerStructure, validateProfileOutput, validateProfileEvidence, buildProfileRepairInstruction, raceStreamWithDeadline, firstUsefulDeadlineMs, LIVE_LOCAL_FIRST_USEFUL_TIMEOUT_MS, CODING_REGEN_ABORT_CHARS, isStealthEvasionQuestion, stripProfileTokensFromCoding, isBareFollowUp, isRefinementFollowUp, buildContextFreeClarification, sanitizeCandidateAnswer, acceptRepairedAnswer, CANDIDATE_VOICE_ANSWER_TYPES, detectAssistantVoiceMisfire, ASSISTANT_VOICE_ANSWER_TYPES, piTelemetry, classifyProviderError, detectExplicitCodingContract, isCodingContinuation, buildPriorCodingContextBlock, buildCodingContractPrompt, explicitContractProducesCode, CODING_VERIFICATION_INSTRUCTION, humanizeDirectiveFor, detectCorporateFiller, humanizeForAnswerType, applySpeakabilityBudget, compressTechnicalConcept, checkCodeCompleteness, varySpokenOpening, type ExplicitCodingContract, type AnswerType } from './llm';
@@ -129,6 +130,13 @@ export function initializeIpcHandlers(appState: AppState): void {
     ipcMain.removeAllListeners(channel);
     ipcMain.on(channel, listener);
   };
+
+  const e2eTestEnabled = isE2eTestEnabled(app.isPackaged, process.env.NATIVELY_E2E);
+  // Registered before any window loads. This synchronous, read-only reply lets
+  // preload use main's packaged-state decision rather than renderer flags.
+  safeOn(E2E_TEST_POLICY_CHANNEL, (event) => {
+    event.returnValue = e2eTestEnabled;
+  });
 
   const broadcastCredentialsChanged = (): void => {
     BrowserWindow.getAllWindows().forEach((win) => {
@@ -5599,9 +5607,9 @@ export function initializeIpcHandlers(appState: AppState): void {
       }
     };
   // Register the manual chat handler; also expose it for the E2E manual-ask
-  // harness (test-only; NATIVELY_E2E gates the caller).
+  // harness (explicitly opted-in, unpackaged processes only).
   safeHandle('gemini-chat-stream', _geminiChatStreamHandler);
-  if (process.env.NATIVELY_E2E === '1') {
+  if (e2eTestEnabled) {
     (globalThis as any).__nativelyGeminiChatStream = _geminiChatStreamHandler;
   }
 
@@ -13669,18 +13677,18 @@ export function initializeIpcHandlers(appState: AppState): void {
   });
 
   // ============================================================
-  // E2E TEST HARNESS IPC (gated behind NATIVELY_E2E=1) ─────────
+  // E2E TEST HARNESS IPC (opted-in, unpackaged processes only) ─────────
   // ============================================================
   // These handlers exist ONLY to let the Modes-Manager E2E harness drive the
   // REAL pipeline without native side-channels that can't run headlessly:
   //   - reference-file ingestion normally needs a native file dialog
   //   - transcript normally arrives from the STT audio stack
   //   - question detection + answering normally needs a live meeting
-  // They are registered ONLY when NATIVELY_E2E=1, so they never exist in a
-  // shipped app. Each still routes through the REAL ModesManager / real WTA
+  // They require NATIVELY_E2E=1 AND !app.isPackaged, so a launch environment
+  // cannot expose them in a shipped app. Each routes through the real WTA
   // pipeline (no stubbing of retrieval or generation).
-  if (process.env.NATIVELY_E2E === '1') {
-    console.warn('[E2E] NATIVELY_E2E=1 — registering test-only IPC handlers (must never ship enabled).');
+  if (e2eTestEnabled) {
+    console.warn('[E2E] Unpackaged test session — registering test-only IPC handlers.');
 
     // Parser-faithful benchmark ingress. Unlike the older content-based helper
     // below, this runs the exact production PDF/DOCX/text parsing use case. The
@@ -13924,7 +13932,7 @@ export function initializeIpcHandlers(appState: AppState): void {
     // but bypasses the OS file-dialog select-file security gate (untestable
     // headlessly). Everything downstream — StructuredExtractor (MiniMax via the
     // Natively backend), DocumentChunker, embeddings, context_nodes, AOT pipeline,
-    // OKF profile pack — is the REAL pipeline. Never registered outside NATIVELY_E2E.
+    // OKF profile pack — the real pipeline, registered only in authorized E2E sessions.
     safeHandle('__e2e__:ingest-profile-doc', async (
       _,
       params: { filePath: string; docType: 'resume' | 'jd' },
