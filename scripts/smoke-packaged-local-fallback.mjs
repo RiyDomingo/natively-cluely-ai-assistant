@@ -11,7 +11,7 @@
 //   node scripts/smoke-packaged-local-fallback.mjs --app release/mac-arm64/Natively.app [--no-ollama] [--no-keys]
 //
 // Notes:
-//   - The app writes its debug log to <documents>/natively_debug.log AND to
+//   - The app writes its debug log to <documents>/zatively_debug.log AND to
 //     stdout via console; we capture stdout/stderr here.
 //   - --no-ollama strips any dir containing an `ollama` binary from PATH.
 //   - --no-keys clears provider key env vars for the child.
@@ -57,7 +57,7 @@ const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'natively-smoke-'));
 // launch, so a leftover "Unhandled Rejection" from an older run would
 // otherwise falsely fail this run's check.
 try {
-  const debugLogPath = path.join(os.homedir(), 'Documents', 'natively_debug.log');
+  const debugLogPath = path.join(os.homedir(), 'Documents', 'zatively_debug.log');
   if (fs.existsSync(debugLogPath)) {
     try { fs.unlinkSync(debugLogPath); } catch { /* best effort */ }
   }
@@ -111,7 +111,7 @@ setTimeout(() => {
   // Give logging a beat to flush.
   const debugLog = (() => {
     try {
-      const p = path.join(os.homedir(), 'Documents', 'natively_debug.log');
+      const p = path.join(os.homedir(), 'Documents', 'zatively_debug.log');
       return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
     } catch { return ''; }
   })();

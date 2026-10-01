@@ -39,7 +39,8 @@ import { Disclosure, DisclosureChevron } from './ui/AccordionSection';
 import { ProfileVisualizer, PremiumUpgradeModal } from '../premium';
 import GlassEffectLayer from './ui/GlassEffectLayer';
 import { BrandMark, BrandMonogram } from './ui/BrandMark';
-import icon from './icon.png';
+import icon from '../../assets/zatively/icon.png';
+import { APP_IDENTITY } from '../config/appIdentity';
 // Shared with the main process so the picker cannot offer a model the ipc
 // validator rejects. Pure data module — no node/electron imports.
 import { NVIDIA_NIM_STT_MODELS, DEFAULT_NVIDIA_NIM_STT_MODEL, allowedLanguageKeysForNvidiaModel } from '../../electron/audio/nvidiaNimSttModels';
@@ -93,7 +94,7 @@ const MockupNativelyInterface = ({ opacity, theme }: { opacity: number; theme: M
                             <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden overlay-icon-surface" style={appearance.iconStyle}>
                                 <img
                                     src={icon}
-                                    alt="Natively"
+                                    alt={APP_IDENTITY.name}
                                     className="w-[24px] h-[24px] object-contain opacity-95 scale-105 force-black-icon"
                                     draggable="false"
                                 />
@@ -1950,7 +1951,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({
                                     onClick={() => window.electronAPI.quitApp()}
                                     className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-3"
                                 >
-                                    <LogOut size={16} /> {t('Quit Natively')}
+                                    <LogOut size={16} /> {t('Quit Natively').replace('Natively', APP_IDENTITY.name)}
                                 </button>
                             </div>
                         </div>

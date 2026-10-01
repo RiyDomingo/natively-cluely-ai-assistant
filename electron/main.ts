@@ -7,6 +7,7 @@
 // init_DatabaseManager() (which is what loads better-sqlite3).
 // ============================================================================
 import './nativeArchGate';
+import './appIdentity';
 
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, shell, systemPreferences, screen, desktopCapturer } from "electron"
 import * as crypto from "crypto"
@@ -19,6 +20,7 @@ import { FatalMainProcessCoordinator } from "./utils/fatalMainProcess"
 import { MeetingLifecycleQueue, type MeetingLifecycleState } from "./audio/meetingLifecycleQueue"
 import { autoUpdater } from "electron-updater"
 import { RELEASE_CONFIG } from '../src/config/release'
+import { APP_IDENTITY, isOwnUpdate } from '../src/config/appIdentity'
 import { createUpdateCheckScheduler } from './update/updateCheckScheduler'
 
 import {
@@ -346,15 +348,15 @@ let _logFile: string | null = null;
 const getLogFile = (): string | null => {
   if (_logFile) return _logFile;
   try {
-    _logFile = path.join(app.getPath('documents'), 'natively_debug.log');
+    _logFile = path.join(app.getPath('documents'), 'zatively_debug.log');
     return _logFile;
   } catch {
     // app.ready may not have fired yet (including native module boot gates).
     // Still write somewhere stable so a pre-ready crash leaves a reason behind.
     const home = os.homedir?.();
     _logFile = home
-      ? path.join(home, 'Documents', 'natively_debug.log')
-      : path.join(os.tmpdir(), 'natively_debug.log');
+      ? path.join(home, 'Documents', 'zatively_debug.log')
+      : path.join(os.tmpdir(), 'zatively_debug.log');
     return _logFile;
   }
 };
@@ -581,7 +583,7 @@ function writeProcessReport(label: string): string | null {
   try {
     const report = (process as any).report;
     if (!report?.writeReport) return null;
-    const dir = path.dirname(getLogFile() || path.join(os.tmpdir(), 'natively_debug.log'));
+    const dir = path.dirname(getLogFile() || path.join(os.tmpdir(), 'zatively_debug.log'));
     try { fs.mkdirSync(dir, { recursive: true }); } catch { /* best-effort */ }
     const file = path.join(dir, `natively-${label}-${Date.now()}.report.json`);
     report.writeReport(file);
@@ -596,7 +598,7 @@ function writeProcessReport(label: string): string | null {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && 'environmentVariables' in parsed) {
         delete parsed.environmentVariables;
-        parsed.environmentVariables = '[REDACTED: see natively_debug.log for env-free diagnostic context]';
+        parsed.environmentVariables = '[REDACTED: see zatively_debug.log for env-free diagnostic context]';
         fs.writeFileSync(file, JSON.stringify(parsed, null, 2));
       }
     } catch (e: any) {
@@ -658,9 +660,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number, tag: string): Promise<T
 const LOG_MAX_BYTES = 10 * 1024 * 1024;
 
 // Per-launch reset: when this version of the app starts, an existing
-// natively_debug.log from a previous session is overwritten so the user
+// zatively_debug.log from a previous session is overwritten so the user
 // always sees only the CURRENT session's breadcrumbs. Opt-out via
-// NATIVELY_KEEP_PREVIOUS_LOG=1 (preserve the old log as natively_debug.log.prev
+// NATIVELY_KEEP_PREVIOUS_LOG=1 (preserve the old log as zatively_debug.log.prev
 // for forensics).
 //
 // CRITICAL FIX (2026-07-09): only TRUNCATE when the prior session ended
@@ -1043,9 +1045,9 @@ function formatPermissionMessage(reason: PermissionReason, extra?: { device?: st
         // console instead (logDevScreenTccBypassHint, below). Bodies here are
         // budgeted at ~2 lines at 11px and must never restate their own title
         // (see permissionTitleKey).
-        return 'Dev builds need their own grant. Enable Natively under Privacy & Security → Screen Recording, then restart.';
+        return 'Dev builds need their own grant. Enable Zatively under Privacy & Security → Screen Recording, then restart.';
       }
-      return "Interviewer audio won't be captured. Enable Natively under Privacy & Security → Screen Recording, then restart.";
+      return "Interviewer audio won't be captured. Enable Zatively under Privacy & Security → Screen Recording, then restart.";
     case 'mac-screen-recording-restricted':
       if (!isMac) return formatPermissionMessage('system-audio-stuck');
       return 'Device policy blocks screen capture. Ask your administrator to allow Natively.';
@@ -1058,8 +1060,8 @@ function formatPermissionMessage(reason: PermissionReason, extra?: { device?: st
       return 'System audio is arriving silent. Toggle Natively off and on under Privacy & Security → Screen Recording, then restart.';
     case 'mic-denied':
       return isMac
-        ? 'Enable Natively under Privacy & Security → Microphone, then restart.'
-        : 'Enable Natively under Settings → Privacy → Microphone, then restart.';
+        ? 'Enable Zatively under Privacy & Security → Microphone, then restart.'
+        : 'Enable Zatively under Settings → Privacy → Microphone, then restart.';
     case 'mic-zero-fill':
       return isMac
         ? "Check the device isn't muted, and that Natively is enabled under Privacy & Security → Microphone."
@@ -2778,6 +2780,13 @@ export class AppState {
     })
 
     autoUpdater.on("update-available", async (info) => {
+      if (!isOwnUpdate(info)) {
+        this.updateAvailable = false;
+        this.updateDownloadState = 'idle';
+        this.downloadedUpdateInfo = null;
+        this.broadcast('update-error', 'The fork feed does not contain a Zatively update. No download will be offered.');
+        return;
+      }
       // PHASE-2A: refuse non-upgrades (downgrade, equal, malformed). electron-updater
       // normally already filters this, but we belt-and-brace it: a stale latest.yml on
       // GitHub (or a republish with the wrong tag) must NEVER cause us to invite the
@@ -2844,6 +2853,13 @@ export class AppState {
     })
 
     autoUpdater.on("update-downloaded", (info) => {
+      if (!isOwnUpdate(info)) {
+        this.updateAvailable = false;
+        this.updateDownloadState = 'idle';
+        this.downloadedUpdateInfo = null;
+        this.broadcast('update-error', 'The downloaded update is not a Zatively payload.');
+        return;
+      }
       console.log("[AutoUpdater] Update downloaded:", info.version)
       this.updateDownloadState = 'downloaded'
       this.updateDownloadPromise = null
@@ -2993,7 +3009,7 @@ export class AppState {
     // passed isRealUpgrade, but renderer/UI bugs could call this IPC directly.
     const currentVersion = app.getVersion()
     const downloadedVersion = (this.downloadedUpdateInfo?.version ?? '').toString().replace(/^v/, '')
-    if (!downloadedVersion) {
+    if (!downloadedVersion || !isOwnUpdate(this.downloadedUpdateInfo)) {
       console.error('[AutoUpdater] quitAndInstall called but no downloaded update info')
       return
     }
@@ -5766,7 +5782,7 @@ export class AppState {
 
     if (!(await ensureMacMicrophoneAccess('audio test'))) {
       // The title is prepended here, not folded back into the body. Banner
-      // copy is now remedy-only ("Enable Natively under…") because the UI
+      // copy is now remedy-only ("Enable Zatively under…") because the UI
       // renders the fault as a separate title; an Error carries no title, so
       // thrown/logged text would otherwise state a fix without ever naming
       // what failed.
@@ -7387,10 +7403,8 @@ export class AppState {
     const resourcesPath = app.isPackaged ? process.resourcesPath : app.getAppPath();
 
     // Potential paths for tray icon
-    const templatePath = path.join(resourcesPath, 'assets', 'iconTemplate.png');
-    const defaultIconPath = app.isPackaged
-      ? path.join(resourcesPath, 'assets', 'icon.png')
-      : path.join(app.getAppPath(), 'src/components/icon.png');
+    const templatePath = path.join(resourcesPath, 'assets', 'zatively', 'iconTemplate.png');
+    const defaultIconPath = path.join(resourcesPath, APP_IDENTITY.icon);
 
     let iconToUse = defaultIconPath;
 
@@ -7401,7 +7415,7 @@ export class AppState {
         console.log('[Tray] Using template icon:', templatePath);
       } else {
         // Also check src/components for dev
-        const devTemplatePath = path.join(app.getAppPath(), 'src/components/iconTemplate.png');
+        const devTemplatePath = path.join(app.getAppPath(), 'assets/zatively/iconTemplate.png');
         if (require('fs').existsSync(devTemplatePath)) {
           iconToUse = devTemplatePath;
           console.log('[Tray] Using dev template icon:', devTemplatePath);
@@ -7418,7 +7432,7 @@ export class AppState {
     trayIcon.setTemplateImage(iconToUse.endsWith('Template.png'));
 
     this.tray = new Tray(trayIcon)
-    this.tray.setToolTip('Natively') // This tooltip might also need update if we change global shortcut, but global shortcut is removed.
+    this.tray.setToolTip(APP_IDENTITY.name)
     this.updateTrayMenu();
 
     // Double-click to show window
@@ -7436,7 +7450,7 @@ export class AppState {
     console.log('[Main] updateTrayMenu called. Screenshot Accelerator:', screenshotAccel);
 
     // Update tooltip for verification
-    this.tray.setToolTip('Natively');
+    this.tray.setToolTip(APP_IDENTITY.name);
 
     // Helper to format accelerator for display (e.g. CommandOrControl+H -> Cmd+H)
     const formatAccel = (accel: string) => {
@@ -7456,7 +7470,7 @@ export class AppState {
 
     const contextMenu = Menu.buildFromTemplate([
       {
-        label: 'Show Natively',
+        label: `Show ${APP_IDENTITY.name}`,
         click: () => {
           this.centerAndShowWindow()
         }
@@ -7932,7 +7946,7 @@ export class AppState {
   }
 
   private _applyDisguise(mode: 'terminal' | 'settings' | 'activity' | 'none'): void {
-    let appName = "Natively";
+    let appName = APP_IDENTITY.name;
     let iconPath = "";
 
     const isWin = process.platform === 'win32';
@@ -7977,19 +7991,19 @@ export class AppState {
         break;
       case 'none':
       default:
-        appName = "Natively";
+        appName = APP_IDENTITY.name;
         if (isMac) {
           iconPath = app.isPackaged
-            ? path.join(process.resourcesPath, "natively.icns")
-            : path.join(app.getAppPath(), "assets/natively.icns");
+            ? path.join(process.resourcesPath, APP_IDENTITY.macIcon)
+            : path.join(app.getAppPath(), APP_IDENTITY.macIcon);
         } else if (isWin) {
           iconPath = app.isPackaged
-            ? path.join(process.resourcesPath, "assets/icons/win/icon.ico")
-            : path.join(app.getAppPath(), "assets/icons/win/icon.ico");
+            ? path.join(process.resourcesPath, APP_IDENTITY.windowsIcon)
+            : path.join(app.getAppPath(), APP_IDENTITY.windowsIcon);
         } else {
           iconPath = app.isPackaged
-            ? path.join(process.resourcesPath, "assets/icon.png")
-            : path.join(app.getAppPath(), "assets/icon.png");
+            ? path.join(process.resourcesPath, APP_IDENTITY.icon)
+            : path.join(app.getAppPath(), APP_IDENTITY.icon);
         }
         break;
     }
@@ -8013,7 +8027,7 @@ export class AppState {
     // 3. Update App User Model ID (Windows Taskbar grouping)
     if (isWin) {
       // Use unique AUMID per disguise to avoid grouping with the real app
-      app.setAppUserModelId(`com.natively.assistant.${mode}`);
+      app.setAppUserModelId(mode === 'none' ? APP_IDENTITY.appId : `${APP_IDENTITY.appId}.${mode}`);
     }
 
     // 4. Update Icons

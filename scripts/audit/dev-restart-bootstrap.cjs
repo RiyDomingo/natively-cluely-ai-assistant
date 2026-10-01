@@ -2,6 +2,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
+const identity = require('../../app.identity.json');
 if (process.versions.electron && process.type === 'browser') {
   const compile = Module.prototype._compile;
   Module.prototype._compile = function (content, filename) {
@@ -15,6 +16,9 @@ if (process.versions.electron && process.type === 'browser') {
         onReady(result) {
           (async () => {
             const enabled = process.env.NATIVELY_E2E === '1';
+            if (app.getName() !== identity.name || app.getPath('userData') !== profile) {
+              throw new Error('Unexpected application identity or isolated profile');
+            }
             if (result.packaged || !result.visible || result.bridge !== (enabled ? 'function' : 'undefined')
               || enabled && (!result.e2eReadSucceeded || !result.productionRejected || !result.namedProductionReadSucceeded)) {
               throw new Error('Unexpected development smoke policy/window');
@@ -22,7 +26,7 @@ if (process.versions.electron && process.type === 'browser') {
             const count = fs.existsSync(counter) ? JSON.parse(fs.readFileSync(counter, 'utf8')) + 1 : 1;
             fs.writeFileSync(counter, JSON.stringify(count));
             fs.copyFileSync(path.join(profile, 'launcher.png'), path.join(profile, `launcher-${count}.png`));
-            console.log('[DEV-RESTART-READY] ' + JSON.stringify({ count, visible: result.visible, bridge: result.bridge,
+            console.log('[DEV-RESTART-READY] ' + JSON.stringify({ count, appName: app.getName(), userData: app.getPath('userData'), visible: result.visible, bridge: result.bridge,
               productionRejected: result.productionRejected, microphone: systemPreferences.getMediaAccessStatus('microphone') }));
             if (count === 1) {
               const win = BrowserWindow.getAllWindows().find(window => window.webContents.getURL().includes('window=launcher'));

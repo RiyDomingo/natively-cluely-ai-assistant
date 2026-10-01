@@ -35,7 +35,7 @@ async function fixture(t, platform, main = 'dist-electron/electron/main.js', lin
       { path: 'dist-electron/electron/main.js', type: 'link', symlink: 'other.js', unpacked: false, stat: fs.statSync(path.join(source, 'other.js')) },
     ]);
   } else await asar.createPackage(source, path.join(resources, 'app.asar'));
-  const binary = platform === 'darwin' ? path.join(root, 'Contents', 'MacOS', 'Natively With Spaces') : path.join(root, 'Natively.exe');
+  const binary = platform === 'darwin' ? path.join(root, 'Contents', 'MacOS', 'Natively With Spaces') : path.join(root, 'Zatively.exe');
   fs.mkdirSync(path.dirname(binary), { recursive: true });
   fs.writeFileSync(binary, 'test binary, never executed');
   if (platform === 'darwin') fs.writeFileSync(path.join(root, 'Contents', 'Info.plist'),

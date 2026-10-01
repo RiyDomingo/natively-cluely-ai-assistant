@@ -17,6 +17,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const identity = require('../app.identity.json');
 
 const plistPath = path.join(
   __dirname,
@@ -37,12 +38,28 @@ if (!fs.existsSync(plistPath)) {
 let content = fs.readFileSync(plistPath, 'utf8');
 
 let modified = false;
+// Development uses a distinct OS identity too. This is bundle metadata, not
+// signing: changing it does not create a trusted signature or migrate TCC.
+function setString(key, value) {
+  const pattern = new RegExp(`(<key>${key}</key>\\s*<string>)[^<]*(</string>)`);
+  if (!pattern.test(content)) throw new Error(`Missing development plist key: ${key}`);
+  const next = content.replace(pattern, `$1${value}$2`);
+  modified ||= next !== content;
+  content = next;
+}
+setString('CFBundleIdentifier', `${identity.appId}.development`);
+setString('CFBundleName', identity.name);
+setString('CFBundleDisplayName', identity.name);
+setString('NSMicrophoneUsageDescription', `${identity.name} needs microphone access to transcribe your voice during meetings.`);
+for (const key of ['NSScreenCaptureUsageDescription', 'NSAudioCaptureUsageDescription']) {
+  if (content.includes(`<key>${key}</key>`)) setString(key, `${identity.name} needs audio capture access for meeting transcription.`);
+}
 
 // Patch NSScreenCaptureUsageDescription
 if (!content.includes('NSScreenCaptureUsageDescription')) {
   content = content.replace(
     '<key>NSMicrophoneUsageDescription</key>',
-    '<key>NSScreenCaptureUsageDescription</key>\n\t<string>Natively needs Screen Recording permission to capture system audio for meeting transcription.</string>\n\t<key>NSMicrophoneUsageDescription</key>'
+    `<key>NSScreenCaptureUsageDescription</key>\n\t<string>${identity.name} needs Screen Recording permission to capture system audio for meeting transcription.</string>\n\t<key>NSMicrophoneUsageDescription</key>`
   );
   modified = true;
   console.log('[patch-electron-plist] Added NSScreenCaptureUsageDescription.');
@@ -54,7 +71,7 @@ if (!content.includes('NSScreenCaptureUsageDescription')) {
 if (!content.includes('NSAudioCaptureUsageDescription')) {
   content = content.replace(
     '<key>NSMicrophoneUsageDescription</key>',
-    '<key>NSAudioCaptureUsageDescription</key>\n\t<string>Natively needs system audio access to transcribe meeting audio.</string>\n\t<key>NSMicrophoneUsageDescription</key>'
+    `<key>NSAudioCaptureUsageDescription</key>\n\t<string>${identity.name} needs system audio access to transcribe meeting audio.</string>\n\t<key>NSMicrophoneUsageDescription</key>`
   );
   modified = true;
   console.log('[patch-electron-plist] Added NSAudioCaptureUsageDescription.');

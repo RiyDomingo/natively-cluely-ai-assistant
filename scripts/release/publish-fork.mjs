@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { hash } from './verify-fork-artifacts.mjs';
 const require = createRequire(import.meta.url);
+const identity = require('../../app.identity.json');
 const { release, assertContext, assertReleaseVersion } = require('./fork-policy.cjs');
 
 export async function acceptedArtifacts(directory, version, commit) {
@@ -57,9 +58,9 @@ export async function publish(directory, apiFetch = (url, options) => fetch(url,
     for (const previous of releases.filter(item => !item.draft && !item.prerelease)) assertReleaseVersion(version, previous.tag_name.replace(/^v/, ''));
     if (releases.length < 100) break;
   }
-  const notes = `Patched public Natively ${version}\n\nUpstream base: ${release.upstreamBase}.\nSource commit: ${env.GITHUB_SHA}.\n\nPreserved: optional Premium/free-build fallback; packaged E2E exclusion.\nVerified: macOS arm64 and Windows x64 signed artifacts, installer/update acceptance.\nFirst fork installation is manual; do not run alongside the official app.\n`;
+  const notes = `${identity.name} ${version} — public Natively fork\n\nUpstream base: ${release.upstreamBase}.\nSource commit: ${env.GITHUB_SHA}.\n\nPreserved: optional Premium/free-build fallback; packaged E2E exclusion.\nVerified: macOS arm64 and Windows x64 signed artifacts, installer/update acceptance.\nFirst installation is manual. Separate application identity and fresh profile; Natively profiles are not migrated.\n`;
   const created = await apiFetch(`${base}/releases`, { method: 'POST', headers: authorized,
-    body: JSON.stringify({ tag_name: `v${version}`, target_commitish: env.GITHUB_SHA, name: `Natively ${version} (patched)`, body: notes, draft: true, prerelease: false }) });
+    body: JSON.stringify({ tag_name: `v${version}`, target_commitish: env.GITHUB_SHA, name: `${identity.name} ${version}`, body: notes, draft: true, prerelease: false }) });
   if (!created.ok) throw new Error('Draft release creation failed');
   const draft = await created.json();
   if (!Number.isSafeInteger(draft.id) || draft.draft !== true || draft.assets?.length) throw new Error('Unexpected draft release response');

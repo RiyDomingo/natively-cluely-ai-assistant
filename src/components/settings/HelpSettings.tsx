@@ -11,7 +11,7 @@ import { AccordionSection } from '../ui/AccordionSection';
 import { useShortcuts } from '../../hooks/useShortcuts';
 import { useResolvedTheme } from '../../hooks/useResolvedTheme';
 import { isMac, getModifierSymbol } from '../../utils/platformUtils';
-import nativelyIcon from '../icon.png';
+import nativelyIcon from '../../../assets/zatively/icon.png';
 import zoomCaptureModeScreenshot from '../../assets/zoom-capture-mode.png';
 
 // ----------------------
@@ -425,8 +425,8 @@ const MockPermissionsAnim = () => {
                 </div>
                 <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                        <img src={nativelyIcon} alt="Natively" className="w-6 h-6 object-contain rounded drop-shadow-sm opacity-90" />
-                        <span className="text-text-primary text-sm font-medium">Natively</span>
+                        <img src={nativelyIcon} alt="Zatively" className="w-6 h-6 object-contain rounded drop-shadow-sm opacity-90" />
+                        <span className="text-text-primary text-sm font-medium">Zatively</span>
                     </div>
 
                     <motion.div

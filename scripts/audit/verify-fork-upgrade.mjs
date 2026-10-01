@@ -9,6 +9,7 @@ import { resolveArtifact, recordParser, installBeforeEntry, requestNormalQuit, r
 import { spawnOwnedWindows, waitOwnedJob, assertOwnedJob, terminateOwnedJob } from './windows-job.mjs';
 import { hash, manifestFiles } from '../release/verify-fork-artifacts.mjs';
 const require = createRequire(import.meta.url);
+const identity = require('../../app.identity.json');
 const { parse } = require('yaml');
 const { assertSigning, baselineVersion } = require('../release/fork-policy.cjs');
 const { run } = require('../release/run.cjs');
@@ -44,11 +45,11 @@ export async function verifyUpgrade(baseline, target, evidence) {
     fs.writeFileSync(path.join(profile, 'theme-config.json'), JSON.stringify({ mode: 'dark' }));
     let app;
     if (mac) {
-      if (fs.existsSync('/Applications/Natively.app')) throw new Error('Existing installed Natively would compromise isolation');
+      if (fs.existsSync(`/Applications/${identity.name}.app`)) throw new Error('Existing installed fork would compromise isolation');
       const archives = fs.readdirSync(baseline).filter(name => name.endsWith('.zip'));
       if (archives.length !== 1) throw new Error('Exactly one signed baseline ZIP required');
       run('/usr/bin/ditto', ['-x', '-k', path.join(baseline, archives[0]), install]);
-      app = path.join(install, 'Natively.app');
+      app = path.join(install, `${identity.name}.app`);
       run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);
       run('/usr/bin/xcrun', ['stapler', 'validate', app]);
       const identity = run('/usr/bin/codesign', ['-dv', '--verbose=4', app], { encoding: 'utf8', stdio: 'pipe' });
@@ -58,8 +59,8 @@ export async function verifyUpgrade(baseline, target, evidence) {
       if (installers.length !== 1) throw new Error('Exactly one signed baseline installer required');
       const powershell = path.win32.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
       run(powershell, ['-NoProfile', '-NonInteractive', '-Command',
-        "$existing=Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' -ErrorAction SilentlyContinue | Where-Object DisplayName -eq 'Natively'; if($existing){throw 'Existing Natively installation'}; $s=Get-AuthenticodeSignature -LiteralPath $env:FORK_VERIFY_FILE; if($s.Status -ne 'Valid' -or $s.SignerCertificate.GetNameInfo('SimpleName',$false) -ne $env:FORK_WIN_PUBLISHER){throw 'Wrong baseline signature'}"],
-        { env: { ...process.env, FORK_VERIFY_FILE: path.join(baseline, installers[0]) } });
+        "$existing=Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' -ErrorAction SilentlyContinue | Where-Object DisplayName -eq $env:FORK_VERIFY_PRODUCT; if($existing){throw 'Existing fork installation'}; $s=Get-AuthenticodeSignature -LiteralPath $env:FORK_VERIFY_FILE; if($s.Status -ne 'Valid' -or $s.SignerCertificate.GetNameInfo('SimpleName',$false) -ne $env:FORK_WIN_PUBLISHER){throw 'Wrong baseline signature'}"],
+        { env: { ...process.env, FORK_VERIFY_PRODUCT: identity.name, FORK_VERIFY_FILE: path.join(baseline, installers[0]) } });
       const baselineInstaller = spawnOwnedWindows(path.resolve(baseline, installers[0]), ['/S', `/D=${install}`], {
         cwd: install, env: runtimeEnv(process.env, profile, { main: path.join(install, 'unused-baseline-entry') }, '0') });
       const baselineLog = fs.createWriteStream(path.join(evidence, 'baseline-installer.log'));

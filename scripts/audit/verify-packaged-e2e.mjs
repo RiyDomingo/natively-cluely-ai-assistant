@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
+const identity = require('../../app.identity.json');
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const bootstrap = path.join(repo, 'scripts/audit/local-security-bootstrap.cjs');
 
@@ -53,13 +54,15 @@ export function resolveArtifact(app, platform = process.platform) {
   const mainBytes = asar.extractFile(archive, relativeEntry, false);
   if (!mainBytes.length) throw new Error('Packaged entry is empty');
   let executable;
+  let appId = manifest.appIdentity?.appId;
   if (platform === 'darwin') {
     const plist = fs.readFileSync(path.join(root, 'Contents', 'Info.plist'), 'utf8');
+    appId = plist.match(/<key>CFBundleIdentifier<\/key>\s*<string>([^<]+)<\/string>/)?.[1];
     const name = plist.match(/<key>CFBundleExecutable<\/key>\s*<string>([^<]+)<\/string>/)?.[1];
     if (!name || /[/\\]|^\.{1,2}$/.test(name)) throw new Error('Invalid CFBundleExecutable');
     executable = path.join(root, 'Contents', 'MacOS', name);
   } else {
-    const name = manifest.productName || manifest.build?.productName || 'Natively';
+    const name = manifest.productName || manifest.build?.productName || identity.name;
     if (typeof name !== 'string' || /[/\\]|^\.{1,2}$/.test(name)) throw new Error('Invalid executable name');
     executable = path.join(root, `${name}.exe`);
   }
@@ -67,7 +70,7 @@ export function resolveArtifact(app, platform = process.platform) {
   if (!fs.statSync(executable).isFile()) throw new Error('Executable is not a file');
   return { root, resources, archive, executable, platform, arch: process.arch,
     main: path.join(archive, ...relativeEntry.split('/')),
-    name: manifest.name, version: manifest.version,
+    name: manifest.name, version: manifest.version, appId,
     entrySha256: crypto.createHash('sha256').update(mainBytes).digest('hex') };
 }
 

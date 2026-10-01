@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Natively logomark — "N" letterform inscribed in a circle.
+ * Zatively logomark — the original N letterform rotated into a Z.
  * Rendered as inline SVG so it inherits `color` (currentColor) and
  * can be styled freely with className.
  */
@@ -35,7 +35,8 @@ export const NativelyLogoMark: React.FC<{
           All strokes use round caps and joins to keep it crisp at small sizes.
         */}
 
-        {/* Left vertical bar */}
+        <g transform="rotate(90 50 50)">
+        {/* Original left vertical bar */}
         <line
             x1="26" y1="22"
             x2="26" y2="78"
@@ -61,5 +62,6 @@ export const NativelyLogoMark: React.FC<{
             strokeWidth="9"
             strokeLinecap="round"
         />
+        </g>
     </svg>
 );

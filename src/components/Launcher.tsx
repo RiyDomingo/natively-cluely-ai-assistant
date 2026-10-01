@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useT } from '../i18n';
 import { ToggleLeft, ToggleRight, Search, Calendar, ArrowRight, ArrowLeft, MoreHorizontal, Globe, Clock, ChevronRight, Settings, LayoutGrid, RefreshCw, Eye, EyeOff, Ghost, Plus, Mail, Link as LinkIcon, ChevronDown, Trash2, Bell, Download, DownloadCloud, CheckCircle, AlertCircle, User, UserSearch, Sparkles, ArrowUpRight } from 'lucide-react';
 import { generateMeetingPDF } from '../utils/pdfGenerator';
-import icon from "./icon.png";
+import icon from "../../assets/zatively/icon.png";
+import { APP_IDENTITY } from '../config/appIdentity';
 import mainui from "../UI_comp/mainui.png";
 import UpcomingCalendarCard from './ui/UpcomingCalendarCard';
 import { useToggleInit } from './settings/useToggleInit';
@@ -904,7 +905,7 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onO
                                     {/* 1.5. Hero Header (Title + Controls + CTA) */}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-4">
-                                            <h1 className="text-3xl font-celeb-light font-medium text-text-primary tracking-wide drop-shadow-sm">{t('My Natively')}</h1>
+                                            <h1 className="text-3xl font-celeb-light font-medium text-text-primary tracking-wide drop-shadow-sm">{t('My Natively').replace('Natively', APP_IDENTITY.name)}</h1>
 
                                             {/* Refresh Button */}
                                             <button
@@ -1093,7 +1094,7 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onO
                                                                 src={icon} alt="Logo" className="w-[18px] h-[18px] object-contain brightness-0 invert drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)] opacity-90"
                                                             />
                                                             <span className="drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)] text-[20px] leading-none">
-                                                                {t('Start Natively')}
+                                                                {t('Start Natively').replace('Natively', APP_IDENTITY.name)}
                                                             </span>
                                                         </motion.div>
                                                     )}

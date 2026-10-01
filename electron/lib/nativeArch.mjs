@@ -26,6 +26,9 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, openSync, readSync, closeSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+const release = createRequire(import.meta.url)('../../release.config.json');
+const releaseUrl = `https://github.com/${release.owner}/${release.repo}/releases/latest`;
 
 // ---------------------------------------------------------------------------
 // Targets: every native addon Electron loads at runtime.
@@ -266,7 +269,7 @@ export function verifyAll(repoRoot = process.cwd(), opts = {}) {
 const PACKAGED_REINSTALL_MESSAGE =
   'This copy of Natively was built for a different chip than your Mac.\n' +
   'Please download the correct version and reinstall:\n\n' +
-  '  https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant/releases/latest\n\n' +
+  `  ${releaseUrl}\n\n` +
   '  • Apple Silicon (M1–M4): the arm64 DMG\n' +
   '  • Intel Macs:            the standard DMG\n\n' +
   'Your data is safe — reinstalling over the current app keeps meeting\n' +
@@ -280,7 +283,7 @@ const PACKAGED_REINSTALL_MESSAGE =
 const PACKAGED_REINSTALL_MESSAGE_WINDOWS =
   'This copy of Natively was built for a different processor architecture\n' +
   'than this PC. Please download the correct installer and reinstall:\n\n' +
-  '  https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant/releases/latest\n\n' +
+  `  ${releaseUrl}\n\n` +
   'Your data is safe — reinstalling over the current app keeps meeting\n' +
   'history and settings.';
 

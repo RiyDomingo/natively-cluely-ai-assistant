@@ -6222,7 +6222,7 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   safeHandle('get-log-file-path', async () => {
     try {
-      return path.join(app.getPath('documents'), 'natively_debug.log');
+      return path.join(app.getPath('documents'), 'zatively_debug.log');
     } catch {
       return null;
     }
@@ -6230,7 +6230,7 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   safeHandle('open-log-file', async () => {
     try {
-      const logPath = path.join(app.getPath('documents'), 'natively_debug.log');
+      const logPath = path.join(app.getPath('documents'), 'zatively_debug.log');
       // Ensure the file exists before opening
       if (!fs.existsSync(logPath)) {
         fs.writeFileSync(logPath, '');

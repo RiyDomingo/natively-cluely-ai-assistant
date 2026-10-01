@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
+import { APP_IDENTITY } from '../config/appIdentity';
+import { REPOSITORY_URL } from '../config/release';
 import {
     Github, Twitter, Shield, Cpu, Database,
     Heart, Linkedin, Instagram, Mail, MicOff, Star, Bug, Globe, Sparkles, Zap, Camera, LayoutGrid, User, Volume2, Activity, MessageSquare, Link, Smartphone, Calendar, ListTodo, Users, WifiOff, Send
@@ -60,7 +62,8 @@ export const AboutSection: React.FC<AboutSectionProps> = () => {
         <div className="space-y-6 animated fadeIn pb-10" data-settings-stagger>
             {/* Header */}
             <div>
-                <h3 className="text-lg font-bold text-text-primary mb-1">{t('About Natively')}</h3>
+                <h3 className="text-lg font-bold text-text-primary mb-1">{t('About Natively').replace('Natively', APP_IDENTITY.name)}</h3>
+                <p className="text-sm text-text-secondary mb-3">Zatively is a separately identified public fork of Natively. Original authorship and licensing are retained.</p>
                 <p className="text-sm text-text-secondary">{t('Designed to be invisible, intelligent, and trusted.')}</p>
             </div>
 
@@ -147,7 +150,7 @@ export const AboutSection: React.FC<AboutSectionProps> = () => {
 
             {/* Architecture Section */}
             <div>
-                <h4 className="text-xs font-bold text-text-tertiary uppercase tracking-wider mb-2 px-1">{t('How Natively Works')}</h4>
+                <h4 className="text-xs font-bold text-text-tertiary uppercase tracking-wider mb-2 px-1">{t('How Natively Works').replace('Natively', APP_IDENTITY.name)}</h4>
                 <div className="bg-bg-item-surface rounded-xl border border-border-subtle overflow-hidden">
                     <div className="p-3 border-b border-border-subtle bg-bg-card/50">
                         <div className="flex items-start gap-4">
@@ -283,14 +286,14 @@ export const AboutSection: React.FC<AboutSectionProps> = () => {
                                     <p className="text-xs text-text-secondary leading-relaxed max-w-lg">
                                         I build software that stays out of the way.
                                         <br />
-                                        <span className="font-bold text-text-primary">Natively</span> is made to feel fast, quiet, and respectful of your privacy.
+                                        <span className="font-bold text-text-primary">{APP_IDENTITY.name}</span> is made to feel fast, quiet, and respectful of your privacy.
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 pl-[60px]">
                                 <a
-                                    href="https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant"
-                                    onClick={(e) => handleOpenLink(e, "https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant")}
+                                    href={REPOSITORY_URL}
+                                    onClick={(e) => handleOpenLink(e, REPOSITORY_URL)}
                                     className="text-text-tertiary hover:text-text-primary transition-colors"
                                     title="GitHub"
                                 >
@@ -327,8 +330,8 @@ export const AboutSection: React.FC<AboutSectionProps> = () => {
                     {/* 2. Star & Report */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <a
-                            href="https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant"
-                            onClick={(e) => handleOpenLink(e, "https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant")}
+                            href={REPOSITORY_URL}
+                            onClick={(e) => handleOpenLink(e, REPOSITORY_URL)}
                             className="bg-bg-item-surface border border-border-subtle rounded-xl p-5 transition-all group flex items-center gap-4 h-full hover:bg-white/10"
                         >
                             <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-500 shrink-0 group-hover:scale-110 transition-transform">
@@ -341,8 +344,8 @@ export const AboutSection: React.FC<AboutSectionProps> = () => {
                         </a>
 
                         <a
-                            href="https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant/issues"
-                            onClick={(e) => handleOpenLink(e, "https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant/issues")}
+                            href={REPOSITORY_URL + '/issues'}
+                            onClick={(e) => handleOpenLink(e, REPOSITORY_URL + '/issues')}
                             className="bg-bg-item-surface border border-border-subtle rounded-xl p-5 transition-all group flex items-center gap-4 h-full hover:bg-white/10"
                         >
                             <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 shrink-0 group-hover:scale-110 transition-transform">

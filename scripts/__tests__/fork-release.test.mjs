@@ -20,6 +20,11 @@ test('public build feed and notes share the sole fork configuration', () => {
   assert.equal(publicConfig.publish[0].owner, release.owner);
   assert.equal(publicConfig.publish[0].repo, release.repo);
   assert.equal(publicConfig.publish[0].channel, release.channel);
+  const defaultFeed = require('../../package.json').build.publish[0];
+  assert.equal(defaultFeed.owner, release.owner);
+  assert.equal(defaultFeed.repo, release.repo);
+  assert.equal(defaultFeed.channel, release.channel);
+  assert.equal(defaultFeed.releaseType, 'draft');
   assert.deepEqual(publicConfig.extraMetadata.forkRelease, release);
   assert.equal(publicConfig.extraMetadata.nativelySigned, false);
   const wrapper = fs.readFileSync(new URL('../package-app.js', import.meta.url), 'utf8');
@@ -33,8 +38,9 @@ test('release URLs stay on the fork and reject malformed tags/unsupported assets
   const { outputFiles } = require('esbuild').buildSync({ entryPoints: [path.join(root, 'src/config/release.ts')], bundle: true, platform: 'node', format: 'cjs', write: false });
   const module = { exports: {} }; vm.runInNewContext(outputFiles[0].text, { module, exports: module.exports });
   const api = module.exports;
-  assert.equal(api.releaseApiUrl('v2.8.9'), 'https://api.github.com/repos/RiyDomingo/natively-cluely-ai-assistant/releases/tags/v2.8.9');
-  assert.match(api.macReleaseDownloadUrl('2.8.9', 'arm64'), /RiyDomingo.*Natively-2.8.9-arm64\.dmg$/);
+  assert.equal(api.releaseApiUrl('v2.8.9'), 'https://api.github.com/repos/RiyDomingo/zatively-cluely-ai-assistant/releases/tags/v2.8.9');
+  assert.equal(api.REPOSITORY_URL, 'https://github.com/RiyDomingo/zatively-cluely-ai-assistant');
+  assert.match(api.macReleaseDownloadUrl('2.8.9', 'arm64'), /RiyDomingo.*Zatively-2.8.9-arm64\.dmg$/);
   for (const version of ['../../evil', 'https://evil.test', '2.8.9-beta.1']) {
     assert.throws(() => api.releaseApiUrl(version));
     assert.equal(api.macReleaseDownloadUrl(version, 'arm64'), api.LATEST_RELEASE_URL);
@@ -91,7 +97,8 @@ test('trusted manual main commit and owner authorization are required', () => {
   for (const change of [{ GITHUB_EVENT_NAME: 'pull_request' }, { GITHUB_REF: 'refs/heads/untrusted' }, { GITHUB_REPOSITORY: 'upstream/repo' }, { FORK_DISTRIBUTION_AUTHORIZED: '' }]) assert.throws(() => assertContext({ ...env, ...change }, '2.8.9'));
 });
 test('updater manifest requires confined payload paths, hashes and sizes', () => {
-  const manifest = { version: '2.8.9', files: [{ url: 'Natively-2.8.9.zip', sha512: 'hash', size: 1 }] };
+  const manifest = { version: '2.8.9', files: [{ url: 'Zatively-2.8.9.zip', sha512: 'hash', size: 1 }] };
+  assert.throws(() => manifestFiles({ ...manifest, files: [{ ...manifest.files[0], url: 'Natively-2.8.9.zip' }] }, '2.8.9'), /Unsafe/);
   assert.equal(manifestFiles(manifest, '2.8.9').length, 1);
   for (const url of ['../payload.zip', 'C:\\payload.zip', 'https://evil.test/file.zip', 'nested/file.zip']) assert.throws(() => manifestFiles({ ...manifest, files: [{ ...manifest.files[0], url }] }, '2.8.9'));
   assert.throws(() => manifestFiles({ ...manifest, version: '2.8.8' }, '2.8.9'));

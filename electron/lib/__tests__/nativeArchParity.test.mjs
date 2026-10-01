@@ -130,6 +130,9 @@ describe('nativeArch parity (cjs ↔ esm)', () => {
       // Must NOT suggest a developer shell command.
       assert.ok(!c.includes('npm run rebuild:native'), 'must NOT suggest npm run rebuild:native to end-users');
       assert.ok(c.includes('releases/latest'), 'must point users to the release page');
+      const release = require('../../../release.config.json');
+      assert.ok(c.includes(`https://github.com/${release.owner}/${release.repo}/releases/latest`));
+      assert.ok(!c.includes('Natively-AI-assistant'), 'must not redirect users to upstream binaries');
     });
   });
 

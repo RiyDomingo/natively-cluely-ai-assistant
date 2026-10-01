@@ -1,10 +1,17 @@
 # Verified fork updates — release and acceptance record
 
+Identity update: this fork is now **Zatively**, with bundle ID
+`io.github.riydomingo.zatively` and a fresh `Zatively` profile. See
+[ZATIVELY_IDENTITY.md](ZATIVELY_IDENTITY.md). Previous Natively-named package
+evidence below is historical, not verification of the newly branded package.
+The fork repository/feed is now `RiyDomingo/zatively-cluely-ai-assistant`. Old Natively-named updater payloads
+are rejected; install the first Zatively package manually. No profile migration.
+
 Lifecycle/harness follow-up: see [LIFECYCLE_VERIFICATION.md](LIFECYCLE_VERIFICATION.md). Installation now awaits completed independent probe/screenshot evidence, and Windows verifier-owned jobs retain detached installers. Both CI matrices include regression coverage. Fresh local macOS startup exclusion passed, but the ad-hoc native-module resource seal fails strict signature verification; no signed release or actual two-version upgrade is accepted or published.
 
 ## Status and scope
 
-Prepared for `RiyDomingo/natively-cluely-ai-assistant`, stable channel, first version
+Prepared for `RiyDomingo/zatively-cluely-ai-assistant`, stable channel, first version
 `2.8.9` / `v2.8.9`, upstream base `2.8.8`. Only macOS arm64 and Windows x64
 are release targets. No credentials, releases, commits, pushes, or remote workflow
 runs were created during implementation. Signing and real installed-upgrade
@@ -22,8 +29,9 @@ offline errors are nonfatal. Development has no automatic checks; manual checks
 use the fork. Existing named download/restart APIs remain user-controlled.
 Unsigned macOS builds retain manual installation, not fabricated signing status.
 
-The app ID, product name and profile location are unchanged. Install the first
-verified fork package manually and do not run it alongside official Natively.
+The app ID, product name and profile location are separate from Natively.
+Install the first verified Zatively package manually. The old fork identity
+cannot update in place into this identity; configure Zatively afresh.
 No automatic production-profile migration or copying is performed.
 
 ## Owner configuration required before release

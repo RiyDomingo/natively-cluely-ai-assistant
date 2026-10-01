@@ -1,11 +1,11 @@
 {
-  "name": "natively",
+  "name": "zatively",
   "version": "2.8.9",
   "main": "dist-electron/electron/main.js",
   "engines": {
     "node": ">=22.6.0"
   },
-  "description": "Natively is a meeting notes app that uses AI to generate notes from your meetings.",
+  "description": "Zatively is a separately identified public fork of Natively for AI-assisted meeting notes.",
   "scripts": {
     "clean": "rimraf dist dist-electron",
     "dev": "vite",
@@ -108,9 +108,9 @@
   },
   "build": {
     "generateUpdatesFilesForAllChannels": true,
-    "appId": "com.electron.meeting-notes",
+    "appId": "io.github.riydomingo.zatively",
     "afterPack": "./scripts/ad-hoc-sign.js",
-    "productName": "Natively",
+    "productName": "Zatively",
     "files": [
       "dist",
       "dist-electron",
@@ -186,13 +186,13 @@
           ]
         }
       ],
-      "icon": "assets/natively.icns",
+      "icon": "assets/zatively/icon.icns",
       "identity": null,
       "hardenedRuntime": false,
       "extendInfo": {
-        "NSScreenCaptureUsageDescription": "Natively needs Screen Recording permission to capture system audio for meeting transcription.",
-        "NSMicrophoneUsageDescription": "Natively needs microphone access to transcribe your voice during meetings.",
-        "NSAudioCaptureUsageDescription": "Natively needs system audio access to transcribe meeting audio."
+        "NSScreenCaptureUsageDescription": "Zatively needs Screen Recording permission to capture system audio for meeting transcription.",
+        "NSMicrophoneUsageDescription": "Zatively needs microphone access to transcribe your voice during meetings.",
+        "NSAudioCaptureUsageDescription": "Zatively needs system audio access to transcribe meeting audio."
       }
     },
     "win": {
@@ -210,7 +210,7 @@
           ]
         }
       ],
-      "icon": "assets/icons/win/icon.ico",
+      "icon": "assets/zatively/icon.ico",
       "requestedExecutionLevel": "asInvoker"
     },
     "linux": {
@@ -228,7 +228,7 @@
           ]
         }
       ],
-      "icon": "assets/icons/png/",
+      "icon": "assets/zatively/icon.png",
       "category": "Office"
     },
     "nsis": {
@@ -241,9 +241,10 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "Natively-AI-assistant",
-        "repo": "natively-cluely-ai-assistant",
-        "releaseType": "release"
+        "owner": "RiyDomingo",
+        "repo": "zatively-cluely-ai-assistant",
+        "channel": "latest",
+        "releaseType": "draft"
       }
     ],
     "npmRebuild": false,

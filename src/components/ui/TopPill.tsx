@@ -1,5 +1,5 @@
 import { ChevronUp, ChevronDown } from "lucide-react";
-import icon from "../icon.png";
+import icon from "../../../assets/zatively/icon.png";
 import type { OverlayAppearance } from "../../lib/overlayAppearance";
 
 interface TopPillProps {

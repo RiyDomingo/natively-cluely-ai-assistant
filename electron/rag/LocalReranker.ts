@@ -37,6 +37,7 @@
 // is consulted at all.
 
 import path from 'path';
+import identity from '../../app.identity.json';
 import fs from 'fs';
 import { Worker } from 'worker_threads';
 import { app } from 'electron';
@@ -125,7 +126,7 @@ class LocalRerankerImpl {
             // Fallback to HOME-based path when app.getPath isn't ready
             // (e.g. ELECTRON_RUN_AS_NODE test/probe mode).
             const homeLocalModels = process.env.HOME
-                ? path.join(process.env.HOME, 'Library/Application Support/natively/local-models')
+                ? path.join(process.env.HOME, 'Library/Application Support', identity.profileDirectory, 'local-models')
                 : '';
             if (userDataDir) candidates.push(path.join(userDataDir, 'local-models'));
             if (homeLocalModels && homeLocalModels !== path.join(userDataDir || '', 'local-models')) {

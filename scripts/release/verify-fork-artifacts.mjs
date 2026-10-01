@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { resolveArtifact, verifyPackaged } from '../audit/verify-packaged-e2e.mjs';
 const require = createRequire(import.meta.url);
+const identity = require('../../app.identity.json');
 const { parse } = require('yaml');
 const { release, assertSigning, stableVersion } = require('./fork-policy.cjs');
 const { run } = require('./run.cjs');
@@ -18,7 +19,7 @@ export async function hash(file, algorithm = 'sha256', encoding = 'hex') {
 export function manifestFiles(manifest, version) {
   if (manifest.version !== stableVersion(version) || !Array.isArray(manifest.files) || !manifest.files.length) throw new Error('Incorrect or empty updater manifest');
   return manifest.files.map(file => {
-    if (typeof file.url !== 'string' || path.basename(file.url) !== file.url || /[/\\]|\.\./.test(file.url)
+    if (typeof file.url !== 'string' || !file.url.startsWith(`${identity.name}-`) || path.basename(file.url) !== file.url || /[/\\]|\.\./.test(file.url)
       || !/^[A-Za-z0-9._-]+$/.test(file.url) || typeof file.sha512 !== 'string'
       || !Number.isSafeInteger(file.size) || file.size <= 0) throw new Error('Unsafe updater manifest file');
     return file;
@@ -48,20 +49,20 @@ export async function verifyArtifacts(directory, evidence, version = require('..
     if (mac) {
       const extracted = fs.mkdtempSync(path.join(evidence, 'zip-extracted-'));
       run('/usr/bin/ditto', ['-x', '-k', path.join(directory, names[0]), extracted]);
-      app = path.join(extracted, 'Natively.app');
+      app = path.join(extracted, `${identity.name}.app`);
       run('/usr/bin/codesign', ['--verify', '--deep', '--strict', app]);
       const details = run('/usr/bin/codesign', ['-dv', '--verbose=4', app], { encoding: 'utf8', stdio: 'pipe' });
       if (!details.stderr.includes(`TeamIdentifier=${process.env.FORK_APPLE_TEAM_ID}`)
         || !details.stderr.includes(`Authority=${process.env.FORK_MAC_IDENTITY}`)) throw new Error('Wrong macOS signing identity');
       run('/usr/sbin/spctl', ['--assess', '--type', 'execute', '--verbose', app]);
       run('/usr/bin/xcrun', ['stapler', 'validate', app]);
-      const dmg = `Natively-${version}-arm64.dmg`;
+      const dmg = `${identity.name}-${version}-arm64.dmg`;
       run('/usr/bin/codesign', ['--verify', '--strict', path.join(directory, dmg)]);
       run('/usr/bin/xcrun', ['stapler', 'validate', path.join(directory, dmg)]);
       run('/usr/sbin/spctl', ['--assess', '--type', 'open', '--context', 'context:primary-signature', path.join(directory, dmg)]);
     } else {
       app = path.join(directory, 'win-unpacked');
-      for (const file of [path.join(directory, names[0]), path.join(app, 'Natively.exe')]) {
+      for (const file of [path.join(directory, names[0]), path.join(app, `${identity.name}.exe`)]) {
         run(path.win32.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe'),
           ['-NoProfile', '-NonInteractive', '-Command', "$s=Get-AuthenticodeSignature -LiteralPath $env:FORK_VERIFY_FILE; if($s.Status -ne 'Valid' -or $s.SignerCertificate.GetNameInfo('SimpleName',$false) -ne $env:FORK_WIN_PUBLISHER){throw 'Invalid signature or publisher'}"],
           { env: { ...process.env, FORK_VERIFY_FILE: file } });
@@ -69,6 +70,7 @@ export async function verifyArtifacts(directory, evidence, version = require('..
     }
     const artifact = resolveArtifact(app);
     if (artifact.version !== version) throw new Error('Packaged version mismatch');
+    if (artifact.appId !== identity.appId || artifact.name !== identity.packageName) throw new Error('Packaged fork identity mismatch');
     const config = parse(fs.readFileSync(path.join(artifact.resources, 'app-update.yml'), 'utf8'));
     if (config.provider !== 'github' || config.owner !== release.owner || config.repo !== release.repo
       || (!mac && ![config.publisherName].flat().includes(process.env.FORK_WIN_PUBLISHER))) throw new Error('Incorrect feed/publisher in packaged updater configuration');

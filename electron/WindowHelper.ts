@@ -717,7 +717,7 @@ export class WindowHelper {
 
     // Pipe renderer-side diagnostics into the main-process log file. Without
     // this, a "stuck at logo" hang or a renderer crash leaves NO trace in
-    // ~/Documents/natively_debug.log — the renderer's console, uncaught JS
+    // ~/Documents/zatively_debug.log — the renderer's console, uncaught JS
     // errors, crashes, and hangs are otherwise invisible to us. This is the
     // difference between "the app is stuck and we can't tell why" and a log
     // line naming the exact failing module/line on the user's machine.
@@ -901,7 +901,7 @@ export class WindowHelper {
   /**
    * Route a window's renderer-side diagnostics into the main-process log so a
    * "stuck at logo" hang or a renderer crash is diagnosable from
-   * ~/Documents/natively_debug.log alone — no DevTools, no remote debugging.
+   * ~/Documents/zatively_debug.log alone — no DevTools, no remote debugging.
    *
    * Captures, per window:
    *   - console-message      → renderer console output (React errors, warnings,

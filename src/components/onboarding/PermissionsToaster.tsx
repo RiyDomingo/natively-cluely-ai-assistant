@@ -11,7 +11,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { X, Monitor, Mic, Settings } from 'lucide-react';
-import nativelyIcon from '../../../assets/icon.png';
+import nativelyIcon from '../../../assets/zatively/icon.png';
 import { useResolvedTheme } from '../../hooks/useResolvedTheme';
 import { readPermissions, actOnMicrophone } from '../../lib/permissionActions.mjs';
 
@@ -229,7 +229,7 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
                 {/* Header row */}
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <img src={nativelyIcon} alt="Natively" style={{ width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0 }} />
+                    <img src={nativelyIcon} alt="Zatively" style={{ width: '18px', height: '18px', borderRadius: '4px', flexShrink: 0 }} />
                     <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: t3 }}>
                       Permissions
                     </span>
@@ -246,7 +246,7 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
                     Let's get you set up
                   </h2>
                   <p style={{ fontSize: '13px', lineHeight: 1.65, color: t3, margin: 0 }}>
-                    Natively needs a few permissions to capture meetings and transcribe speech.
+                    Zatively needs a few permissions to capture meetings and transcribe speech.
                   </p>
                 </motion.div>
 
@@ -387,19 +387,19 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
                       }}
                     >
                       <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                        {/* Natively Icon with subtle breath/float loop */}
+                        {/* Zatively Icon with subtle breath/float loop */}
                         <motion.div 
                           animate={{ y: [0, -2, 0] }}
                           transition={{ repeat: Infinity, duration: 2.8, ease: "easeInOut" }}
                           style={{ width: '32px', height: '32px', flexShrink: 0 }}
                         >
-                          <img src={nativelyIcon} alt="Natively" style={{ width: '32px', height: '32px', borderRadius: '7px', boxShadow: colors.step1NativelyShadow }} />
+                          <img src={nativelyIcon} alt="Zatively" style={{ width: '32px', height: '32px', borderRadius: '7px', boxShadow: colors.step1NativelyShadow }} />
                         </motion.div>
                         
                         {/* Prompt Text */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <div style={{ fontSize: '10px', fontWeight: 600, color: colors.step1TextPrimary, lineHeight: 1.3, letterSpacing: '-0.01em' }}>
-                            "Natively" wants to record the screen.
+                            "Zatively" wants to record the screen.
                           </div>
                           <div style={{ fontSize: '8.5px', color: colors.step1TextMuted, lineHeight: 1.25 }}>
                             Enable access in Privacy & Security settings.
@@ -450,11 +450,11 @@ export const PermissionsToaster: React.FC<Props> = ({ isOpen, onDismiss }) => {
                     >
                       {/* Left app icon well */}
                       <div style={{ width: '22px', height: '22px', borderRadius: '5px', background: colors.step2IconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: colors.step2IconBorder }}>
-                        <img src={nativelyIcon} alt="Natively" style={{ width: '14px', height: '14px', borderRadius: '3px' }} />
+                        <img src={nativelyIcon} alt="Zatively" style={{ width: '14px', height: '14px', borderRadius: '3px' }} />
                       </div>
                       {/* Label */}
                       <span style={{ fontSize: '10px', fontWeight: 550, color: colors.step2Text, flex: 1, letterSpacing: '-0.01em' }}>
-                        Natively
+                        Zatively
                       </span>
                       {/* Active Toggle Switch with premium gradient, looping animation, and manual tap override */}
                       <motion.div 

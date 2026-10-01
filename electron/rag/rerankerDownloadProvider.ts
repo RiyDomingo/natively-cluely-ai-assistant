@@ -22,6 +22,7 @@
 // via its existing modelPath candidate-search without code changes.
 
 import path from 'path';
+import identity from '../../app.identity.json';
 import fs from 'fs';
 import { app } from 'electron';
 import { Worker } from 'worker_threads';
@@ -41,10 +42,10 @@ function getLocalModelsDir(): string {
         // fires (app.getPath is always ready by the time providers register).
         const home = process.env.HOME || '';
         if (process.platform === 'darwin') {
-            return path.join(home, 'Library/Application Support/natively/local-models');
+            return path.join(home, 'Library/Application Support', identity.profileDirectory, 'local-models');
         }
         // Linux/Windows fallback — best-effort only.
-        return path.join(home, '.natively/local-models');
+        return path.join(home, `.${identity.packageName}`, 'local-models');
     }
 }
 

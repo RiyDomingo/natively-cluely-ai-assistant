@@ -50,9 +50,10 @@ const crypto = require('crypto');
 const { notarytoolSubmitWithRetry } = require('./lib/notary-transient.cjs');
 const { stapleWithRetry } = require('./staple-with-retry');
 
-const VOLNAME = 'Natively';
+const identity = require('../app.identity.json');
+const VOLNAME = identity.name;
 const BACKGROUND = path.resolve(__dirname, '..', 'assets', 'dmg-background.png');
-const VOLICON = path.resolve(__dirname, '..', 'assets', 'natively.icns');
+const VOLICON = path.resolve(__dirname, '..', identity.macIcon);
 
 function sha512base64(file) {
   return crypto.createHash('sha512').update(fs.readFileSync(file)).digest('base64');

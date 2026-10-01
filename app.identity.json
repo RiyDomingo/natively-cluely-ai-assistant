@@ -1,0 +1,9 @@
+{
+  "name": "Zatively",
+  "packageName": "zatively",
+  "appId": "io.github.riydomingo.zatively",
+  "profileDirectory": "Zatively",
+  "icon": "assets/zatively/icon.png",
+  "macIcon": "assets/zatively/icon.icns",
+  "windowsIcon": "assets/zatively/icon.ico"
+}
